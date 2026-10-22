@@ -1,0 +1,46 @@
+# Scare Force settings. Pin numbers are BCM (GPIO numbers), not physical pin numbers.
+
+camera:
+  width: 640
+  height: 480
+
+detector:
+  model: models/yolo11n_320.onnx
+  labels: models/coco.txt
+  num_threads: 4
+  conf_threshold: 0.25      # boxes below this are dropped before NMS
+  iou_threshold: 0.45       # NMS overlap threshold
+
+light:
+  pin: 23                   # GPIO23 = physical pin 16, drives the light's relay
+  active_high: true         # false if the relay board switches on when its input is LOW
+
+servos:
+  # Hardware PWM: needs `dtoverlay=pwm-2chan` in /boot/firmware/config.txt (GPIO18 = channel 0,
+  # GPIO19 = channel 1). Miuzei 25 kg 270-degree servos: min_us -> 0 deg, max_us -> range_deg,
+  # so the centre is 135 deg.
+  min_us: 500
+  max_us: 2500
+  range_deg: 270
+  up_angle: 180             # TODO: tune on the hardware (centre +/- 45 for now)
+  down_angle: 90
+  channels:
+    left: {chip: 0, channel: 0, pin: 18}
+    right: {chip: 0, channel: 1, pin: 19}
+
+sound:
+  device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)
+  mixer_card: Headphones
+  mixer_control: PCM
+  level: 80                 # percent, set before every play
+  dir: sounds               # clips sorted by name; play(n) plays the n-th one
+
+controller:
+  labels: [teddy bear]      # labels that trigger a scare (COCO names, see models/coco.txt)
+  min_confidence: 0.5
+  scare_seconds: 5          # how long the scare lasts
+  flap_seconds: 0.5         # time between servo up and down while scaring
+  return_deg_per_s: 90      # after a scare, ease back down this fast: jumping right after an up flap
+                            # reverses the servos mid-move, and that current spike can brown out
+                            # their supply
+  cooldown_seconds: 10      # quiet time after a scare before the next one
