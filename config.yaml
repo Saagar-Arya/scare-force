@@ -5,8 +5,8 @@ camera:
   height: 480
 
 detector:
-  model: models/yolo11n_320.onnx
-  labels: models/coco.txt
+  model: models/toys_320.onnx       # model: models/yolo11n_320.onnx
+  labels: models/toy_labels.txt     # labels: models/coco.txt
   num_threads: 4
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
@@ -36,7 +36,7 @@ sound:
   dir: sounds               # clips sorted by name; play(n) plays the n-th one
 
 controller:
-  labels: [teddy bear]      # labels that trigger a scare (COCO names, see models/coco.txt)
+  labels: [raccoon, groundhog, squirrel]       # labels: [teddy bear]      # labels that trigger a scare (COCO names, see models/coco.txt)
   min_confidence: 0.5
   scare_seconds: 5          # how long the scare lasts
   flap_seconds: 0.5         # time between servo up and down while scaring
