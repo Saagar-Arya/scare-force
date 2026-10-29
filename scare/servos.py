@@ -1,7 +1,8 @@
 """Two servos on the Pi 4's hardware PWM, written straight to /sys/class/pwm.
 
-Setup: `dtoverlay=pwm-2chan` in /boot/firmware/config.txt, reboot. Channel 0 = GPIO18 (pin 12),
-channel 1 = GPIO19 (pin 35), chip 0.
+Setup: `dtoverlay=pwm,pin=19,func=2` in /boot/firmware/config.txt, reboot: channel 1 on GPIO19
+(pin 35), chip 0. Both servos get the same pulse, so their signal wires share that pin. (GPIO18 is
+one of the camera adapter's select lines; GPIO12/13 read as stuck at ground with it fitted.)
 
 A servo wants a pulse every 20 ms (50 Hz); the pulse width sets the angle:
 min_us -> 0 deg, max_us -> range_deg.

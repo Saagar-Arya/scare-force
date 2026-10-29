@@ -3,30 +3,37 @@
 camera:
   width: 640
   height: 480
+  # Arducam Multi Camera Adapter V2.2 (`dtoverlay=camera-mux-4port,cam0-imx708,cam2-imx708` in
+  # /boot/firmware/config.txt; camN = port A, B, C, D, here A and C): `rpicam-hello --list-cameras`
+  # numbers the cameras it finds 0, 1, ...
+  # The Pi 4 has one CSI port, so only one streams at a time; cameras not found are skipped.
+  ids: [0, 1]
+  dwell_seconds: 2.0        # watch each camera this long, then switch (a switch takes ~0.5 s)
 
 detector:
-  model: models/toys_320.onnx       # model: models/yolo11n_320.onnx
-  labels: models/toy_labels.txt     # labels: models/coco.txt
+  model: models/yolo11n_320.onnx    # model: models/toys_320.onnx
+  labels: models/coco.txt           # labels: models/toy_labels.txt
   num_threads: 4
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
 
 light:
-  pin: 23                   # GPIO23 = physical pin 16, drives the light's relay
+  pin: 26                   # GPIO26 = physical pin 37, drives the light's relay
   active_high: true         # false if the relay board switches on when its input is LOW
 
 servos:
-  # Hardware PWM: needs `dtoverlay=pwm-2chan` in /boot/firmware/config.txt (GPIO18 = channel 0,
-  # GPIO19 = channel 1). Miuzei 25 kg 270-degree servos: min_us -> 0 deg, max_us -> range_deg,
-  # so the centre is 135 deg.
+  # Hardware PWM: needs `dtoverlay=pwm,pin=19,func=2` in /boot/firmware/config.txt (channel 1 on
+  # GPIO19). Both servos always get the same angle, so their signal wires share GPIO19 through a
+  # Y cable. GPIO18 is the camera adapter's, and GPIO12/13 read as stuck at ground with the
+  # adapter fitted. Miuzei 25 kg 270-degree servos: min_us -> 0 deg, max_us -> range_deg, so the
+  # centre is 135 deg.
   min_us: 500
   max_us: 2500
   range_deg: 270
   up_angle: 180             # TODO: tune on the hardware (centre +/- 45 for now)
   down_angle: 90
   channels:
-    left: {chip: 0, channel: 0, pin: 18}
-    right: {chip: 0, channel: 1, pin: 19}
+    both: {chip: 0, channel: 1, pin: 19}   # both servo signal wires
 
 sound:
   device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)
@@ -36,7 +43,7 @@ sound:
   dir: sounds               # clips sorted by name; play(n) plays the n-th one
 
 controller:
-  labels: [raccoon, groundhog, squirrel]       # labels: [teddy bear]      # labels that trigger a scare (COCO names, see models/coco.txt)
+  labels: [teddy bear]      # labels: [raccoon, groundhog, squirrel]      # labels that trigger a scare (COCO names, see models/coco.txt)
   min_confidence: 0.5
   scare_seconds: 5          # how long the scare lasts
   flap_seconds: 0.5         # time between servo up and down while scaring
