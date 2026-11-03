@@ -11,11 +11,21 @@ camera:
   dwell_seconds: 2.0        # watch each camera this long, then switch (a switch takes ~0.5 s)
 
 detector:
-  model: models/yolo11n_320.onnx    # model: models/toys_320.onnx
-  labels: models/coco.txt           # labels: models/toy_labels.txt
+  model: models/toys_320.onnx
+  labels: models/toy_labels.txt
   num_threads: 4
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
+
+# Original pretrained model: only person detections are used.
+person_detector:
+  model: models/yolo11n_320.onnx
+  labels: models/coco.txt
+  num_threads: 4
+  conf_threshold: 0.35
+  iou_threshold: 0.45
+  hold_seconds: 0.5         # retain recent person regions for this camera only
+  same_object_iou: 0.5      # reject similar boxes, allow smaller held-animal boxes
 
 light:
   pin: 26                   # GPIO26 = physical pin 37, drives the light's relay
@@ -43,7 +53,7 @@ sound:
   dir: sounds               # clips sorted by name; play(n) plays the n-th one
 
 controller:
-  labels: [teddy bear]      # labels: [raccoon, groundhog, squirrel]      # labels that trigger a scare (COCO names, see models/coco.txt)
+  labels: [raccoon, groundhog, squirrel]  # only these labels trigger
   min_confidence: 0.5
   scare_seconds: 5          # how long the scare lasts
   flap_seconds: 0.5         # time between servo up and down while scaring

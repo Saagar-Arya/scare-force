@@ -4,7 +4,9 @@ With several cameras (camera.ids) only one streams at a time, so the loop watche
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
 a random clip (never the same one twice in a row), servos flapping up/down and the light on. After
 scare_seconds everything stops, then nothing fires again until cooldown_seconds have passed.
-Detection and switching keep running the whole time.
+Detection and switching keep running the whole time. Both models see the same frame.
+Animal boxes matching person boxes are rejected; smaller held animals remain eligible.
+Person regions and active trigger positions are scoped to their source camera.
 
 Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C stops)
      python -m scare.controller --headless   (no window)
@@ -17,6 +19,7 @@ import time
 from . import ROOT, load_config
 from .camera import Camera
 from .detector import Detector
+from .person_guard import PersonGuard
 from .light import Light
 from .servos import Servos
 from .sound import Sound
@@ -34,9 +37,19 @@ def main() -> None:
     d = cfg["detector"]
     c = cfg["camera"]
 
-    camera = Camera(c["width"], c["height"], c["ids"])
     detector = Detector(ROOT / d["model"], ROOT / d["labels"], d["num_threads"],
                         d["conf_threshold"], d["iou_threshold"])
+    # Require both models before opening hardware; never silently skip person checks.
+    pd = cfg["person_detector"]
+    person_detector = Detector(ROOT / pd["model"], ROOT / pd["labels"], pd["num_threads"],
+                               pd["conf_threshold"], pd["iou_threshold"])
+    if "person" not in person_detector.labels:
+        raise ValueError("Person detector labels must include 'person'.")
+    # Validate policy settings before hardware initialization.
+    PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd.get("same_object_iou", 0.5))
+    camera = Camera(c["width"], c["height"], c["ids"])
+    guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
+                          pd.get("same_object_iou", 0.5)) for _ in camera.ids]
     light = Light(cfg["light"]["pin"], cfg["light"]["active_high"])
     sound = Sound(cfg["sound"], ROOT)
     sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
@@ -46,6 +59,8 @@ def main() -> None:
     quiet_until = 0.0     # no new scare before this
     next_flap = 0.0
     servo_up = False
+    active_target = None
+    active_camera = None
     last_clip = None
     last_frame_t = time.monotonic()
     fps = 0.0
@@ -66,16 +81,35 @@ def main() -> None:
             if switch_t is not None:  # time the switch up to the new camera's first frame
                 switch_ms = (time.monotonic() - switch_t) * 1000
                 next_switch = time.monotonic() + c["dwell_seconds"]
-            detections = detector.detect(frame)
+            people = [det for det in person_detector.detect(frame) if det.label == "person"]
+            animal_detections = detector.detect(frame)
+            detections = animal_detections + people
+            now = time.monotonic()
+            guard = guards[camera.current]
+            guard.update(people, now)
             hits = [
-                det for det in detections
+                det for det in animal_detections
                 if det.label in rules["labels"] and det.confidence >= rules["min_confidence"]
             ]
-            now = time.monotonic()
+            rejected = [det for det in hits if guard.blocks(det)]
+            hits = [det for det in hits if not guard.blocks(det)]
+            if (scare_until and active_camera == camera.current and
+                    active_target is not None and guard.blocks(active_target)):
+                print("[controller] person matches active target box: stopping scare", flush=True)
+                scare_until = 0.0
+                active_target = None
+                active_camera = None
+                light.off()
+                sound.stop()
+                servos.ramp(servos.down_angle, rules["return_deg_per_s"])
+                servo_up = False
+                quiet_until = max(quiet_until, time.monotonic() + rules["cooldown_seconds"])
             feeds[camera.current] = (frame, detections, hits, now)
 
             if hits and now >= quiet_until:
                 best = hits[0]
+                active_target = best
+                active_camera = camera.current
                 print(f"[controller] SCARE: camera {camera.ids[camera.current]} {best.label} "
                       f"{best.confidence:.2f} at {best.box}", flush=True)
                 scare_until = now + rules["scare_seconds"]
@@ -94,6 +128,8 @@ def main() -> None:
             elif scare_until:
                 print("[controller] scare over", flush=True)
                 scare_until = 0.0
+                active_target = None
+                active_camera = None
                 light.off()
                 sound.stop()
                 servos.ramp(servos.down_angle, rules["return_deg_per_s"])
@@ -107,6 +143,8 @@ def main() -> None:
                     state = f"SCARING {scare_until - now:.1f}s"
                 elif now < quiet_until:
                     state = f"cooldown {quiet_until - now:.1f}s"
+                elif rejected:
+                    state = "PERSON MATCH"
                 else:
                     state = "watching"
                 status = [
@@ -125,7 +163,7 @@ def main() -> None:
                     f_frame, f_dets, f_hits, f_t = feed
                     age = "live" if live else f"{now - f_t:.1f}s ago"
                     views.append((f"camera {camera.ids[i]}: {age}", f_frame, f_dets, f_hits, live))
-                line2 = f"{fps:.1f} fps   {len(detections)} objects   triggers: {rules['labels']}"
+                line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(rejected)} person-match blocks"
                 if len(camera.ids) > 1:
                     line2 += f"   switch {switch_ms:.0f} ms every {c['dwell_seconds']}s"
                 if not display.show(views, status, line2):
