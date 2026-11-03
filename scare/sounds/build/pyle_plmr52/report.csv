@@ -1,0 +1,27 @@
+clip_id,sound_type,flagged,spl_1m_db,cited_spl_1m_db,level_offset_db,duration_s,lufs,true_peak_dbtp,onset_rise_ms,crest_db,gain_db,limiter_gr_db,lead_trim_s,pad_s,lufs_ok,peak_ok,onset_ok,length_ok,status
+# target_lufs -18: highest integer LUFS at which every unflagged clip needs <= 3.0 dB of limiting (floor -24)
+# set by raptor_coopers_hawk_01: crest 18.2 dB; 1.5 dB of limiting at -18 and 3.1 dB at -17
+# too_peaky (over the cap even at -24 LUFS; excluded in library.yaml): none
+human_speech_gao_podcast_woman_01,human_speech,False,95.0,80.0,0.00,5.00,-18.00,-3.80,1.69,14.20,-1.20,0.00,0.00,0.00,True,True,True,True,ok
+human_speech_radio_address_man_03,human_speech,False,95.0,80.0,0.00,5.00,-18.00,-1.20,1.81,17.00,4.10,0.19,0.00,0.00,True,True,True,True,ok
+human_speech_talk_radio_interview_02,human_speech,False,95.0,80.0,0.00,5.00,-18.00,-1.10,0.60,18.00,5.20,1.26,0.00,0.00,True,True,True,True,ok
+human_shout_goal_01,human_shout,False,95.0,,0.00,4.81,-18.00,-4.00,2.56,14.00,-0.90,0.00,0.00,0.00,True,True,True,True,ok
+human_shout_man_battlecry_04,human_shout,False,95.0,,0.00,1.50,-18.00,-1.20,2.56,17.40,2.80,0.80,0.00,0.08,True,True,True,True,ok
+human_shout_woman_answer_me_02,human_shout,False,95.0,,0.00,2.15,-18.00,-2.40,4.12,15.60,2.40,0.00,0.16,0.00,True,True,True,True,ok
+human_scream_ahhh_02,human_scream,False,95.0,,0.00,2.44,-18.00,-5.70,1.85,12.30,-5.50,0.00,0.00,0.00,True,True,True,True,ok
+human_scream_woman_01,human_scream,False,95.0,,0.00,1.50,-18.00,-9.40,1.04,8.60,-6.10,0.00,0.51,0.19,True,True,True,True,ok
+dog_bark_amada44_03,dog_bark,False,95.0,86.0,0.00,5.31,-18.00,-3.40,2.46,14.60,-3.60,0.00,0.04,0.00,True,True,True,True,ok
+dog_bark_nono_04,dog_bark,False,95.0,86.0,0.00,6.00,-18.00,-4.00,1.54,14.00,-4.10,0.00,0.00,0.00,True,True,True,True,ok
+dog_bark_rome_street_02,dog_bark,False,95.0,86.0,0.00,6.00,-18.00,-1.20,3.15,17.60,12.30,0.78,0.00,0.00,True,True,True,True,ok
+dog_bark_rottweiler_01,dog_bark,False,95.0,86.0,0.00,6.00,-18.00,-1.10,1.56,18.00,8.70,1.26,0.00,0.00,True,True,True,True,ok
+siren_hilo_01,siren,False,95.0,,0.00,6.00,-18.00,-14.50,0.52,3.50,-14.70,0.00,0.00,0.00,True,True,True,True,ok
+siren_hyperyelp_01,siren,False,95.0,,0.00,4.48,-18.00,-15.20,0.50,2.80,-15.50,0.00,0.00,0.00,True,True,True,True,ok
+siren_wail_01,siren,False,95.0,,0.00,7.00,-18.00,-14.90,0.75,3.10,-15.20,0.00,0.00,0.00,True,True,True,True,ok
+siren_yelp_01,siren,False,95.0,,0.00,6.00,-18.00,-15.30,0.69,2.70,-15.60,0.00,0.00,0.00,True,True,True,True,ok
+raptor_coopers_hawk_01,raptor,False,95.0,78.0,0.00,5.24,-18.00,-1.10,1.48,18.20,5.00,1.53,0.11,0.00,True,True,True,True,ok
+raptor_red_shouldered_hawk_01,raptor,False,95.0,78.0,0.00,5.20,-18.00,-3.00,1.62,15.00,-3.20,0.00,0.00,0.00,True,True,True,True,ok
+raptor_red_tailed_hawk_01,raptor,False,95.0,78.0,0.00,1.93,-18.00,-7.90,0.69,10.10,-2.10,0.00,0.07,0.00,True,True,True,True,ok
+raptor_red_tailed_hawk_02,raptor,False,95.0,78.0,0.00,3.93,-18.00,-1.20,1.65,16.90,8.00,0.19,0.00,0.00,True,True,True,True,ok
+woodchuck_alarm_ohio_whistle_03,woodchuck_alarm,True,95.0,,0.00,2.00,-23.40,-1.10,0.73,23.70,17.49,2.98,0.00,0.00,False,True,True,True,FAIL: lufs
+woodchuck_alarm_vt_whistle_02,woodchuck_alarm,True,95.0,,0.00,1.98,-18.00,-1.80,1.56,16.20,9.30,0.00,0.00,0.00,True,True,True,True,ok
+woodchuck_alarm_wv_whistle_01,woodchuck_alarm,True,95.0,,0.00,1.84,-24.00,-1.20,9.42,23.70,4.95,2.98,0.15,0.00,False,True,False,True,FAIL: lufs onset

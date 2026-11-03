@@ -1,0 +1,373 @@
+# Scare Force deterrent sound library (team decision D-17). The single manifest: what clips
+# exist, where they came from, why they're here, and which set each animal gets.
+# How to use / extend it: ../SOUNDS.md. Reference numbers: the team's REFERENCES.md.
+#
+# Originals in originals/ are never processed in place. build_sounds.py makes
+# build/<active_profile>/<id>.wav from them; sound_library.py picks clips for a label.
+
+mode: generic                # generic | species | auto
+                             #   generic: always the generic set
+                             #   species: label_map's set for the label; unknown/missing -> generic
+                             #   auto:    same as species (for when the classifier names species)
+active_profile: pyle_plmr52  # profiles/<name>.yaml; its WAVs are in build/<name>/
+
+# classifier label -> set. Matching ignores case, spaces, '-' and '_'. Unmapped -> generic.
+# Species sets only for the field-tested species (team decision D-20: groundhog, raccoon,
+# squirrel); deer, rat and any other label play the generic set.
+label_map:
+  raccoon: raccoon
+  groundhog: groundhog
+  woodchuck: groundhog
+  squirrel: squirrel
+  gray squirrel: squirrel
+  eastern gray squirrel: squirrel
+
+# set -> sound types. Clips are picked by sound_type and played round-robin across types.
+sets:
+  generic:   [human_speech, human_shout, human_scream, dog_bark, siren]
+  raccoon:   [dog_bark, human_speech, human_shout, human_scream]
+  groundhog: [raptor, dog_bark, woodchuck_alarm]   # woodchuck_alarm clips are flagged (off)
+  squirrel:  [raptor, dog_bark]                    # no human sounds
+
+# What the cited studies used: sound_type -> SPL at 1 m, references, measurement conditions.
+# NOT applied (D-21: all types play at reference_spl_1m_db so TR4 Test 4 holds). Documentation
+# of the gap to the literature only; build_sounds.py copies spl_1m_db into report.csv as
+# cited_spl_1m_db. Types without an entry have no cited level.
+cited_levels:
+  dog_bark:
+    spl_1m_db: 86
+    refs: [51]
+    conditions: "86.1 ± 2.9 dB SPL at 1 m, weighting not stated; free-ranging raccoons, BC islands, continuous 20-40% duty cycle"
+  human_speech:
+    spl_1m_db: 80
+    refs: [127, 128]
+    conditions: "~80 dB at 1 m, weighting not stated; mesocarnivores (CA) and badgers (UK), 40%/1:1.5 duty cycles"
+  raptor:
+    spl_1m_db: 78
+    refs: [126]
+    conditions: "75-80 dB SPL at 1 m (range midpoint), weighting not stated; gray squirrels, 1-3 s red-tailed hawk call"
+
+# One record per clip. evidence: reference numbers; basis: why, where evidence is thin or none.
+# flagged: true = left out unless include_flagged=True. excerpt: start/end (s) in the source,
+# null = whole source. Excerpts of natural recordings start right at a loud event (cut only, no
+# processing), so the onset stays abrupt after the build's lead trim. media_url: the file that
+# was downloaded. Team recordings: originals/human_*/team/ (see SOUNDS.md).
+# excluded_reason (only when set): the clip is never played. build_sounds.py writes
+# "too_peaky: ..." for a clip that would need more limiting than the profile allows even at the
+# lowest target, and removes it again once the clip fits; any other reason is set by hand.
+# replace_with_team_recording: true = keep playing it, but swap in a team recording when one exists.
+clips:
+  # ---- human_speech ----
+  - id: human_speech_gao_podcast_woman_01
+    sound_type: human_speech
+    original: originals/human_speech/human_speech_gao_podcast_woman_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:How_Airline_Mergers_and_Competition_Impact_Passengers_-_GAO_Watchdog.opus"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/b/b9/How_Airline_Mergers_and_Competition_Impact_Passengers_-_GAO_Watchdog.opus"
+    author: "Government Accountability Office: Holly Hobbs (host), Danielle Giese and Mike Hoffman (guests)"
+    license: "Public domain (US federal work, GAO)"
+    license_url: null
+    excerpt: {start_s: 250.804, end_s: 255.804}
+    evidence: [123, 124, 127]
+    basis: null
+    flagged: false
+    notes: "GAO 'Watchdog' podcast, conversational interview about airline mergers (studio speech, ~8 min episode). Excerpt taken from mid-episode, away from the intro/outro (intro has edited teaser segments). Pitch analysis (F0 ~170-250 Hz) indicates a female voice (host or guest Danielle Giese) talking continuously; words not transcribed. Not verified by ear for a music bed; mid-episode speech is expected to be dry."
+  - id: human_speech_radio_address_man_03
+    sound_type: human_speech
+    original: originals/human_speech/human_speech_radio_address_man_03.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:George_W._Bush%27s_weekly_radio_address_(November_1,_2008).oga"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/2/22/George_W._Bush%27s_weekly_radio_address_%28November_1%2C_2008%29.oga"
+    author: "George W. Bush"
+    license: "Public domain (US federal work, POTUS)"
+    license_url: null
+    excerpt: {start_s: 64.565, end_s: 69.565}
+    evidence: [123, 124, 127]
+    basis: null
+    flagged: false
+    replace_with_team_recording: true   # recognizable political voice: a distraction in the demo video
+    notes: "US presidential weekly radio address (2 min, single male speaker, studio). Excerpt is a continuous 5 s of talking from mid-address (F0 ~95-120 Hz, male). Clean, no music expected in radio addresses; not verified by ear."
+  - id: human_speech_talk_radio_interview_02
+    sound_type: human_speech
+    original: originals/human_speech/human_speech_talk_radio_interview_02.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Talk_Nation_Radio_-_2008-12-23_An_interview_with_Richard_Falk,_UN_reporter_on_Human_Rights_in_Palestinian_Territories.vorb.oga"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/b/b0/Talk_Nation_Radio_-_2008-12-23_An_interview_with_Richard_Falk%2C_UN_reporter_on_Human_Rights_in_Palestinian_Territories.vorb.oga"
+    author: "Dori Smith (Talk Nation Radio); guest Richard Falk"
+    license: "CC BY 3.0"
+    license_url: "https://creativecommons.org/licenses/by/3.0"
+    excerpt: {start_s: 684, end_s: 689}
+    evidence: [123, 124, 127]
+    basis: null
+    flagged: false
+    replace_with_team_recording: true   # recognizable political voice: a distraction in the demo video
+    notes: "Community talk-radio interview (host Dori Smith, guest Richard Falk), ~30 min. Excerpt from ~11.4 min, chosen as the most continuous 5 s of talking in that region; speaker identity and words not verified by ear. 22.05 kHz source, so bandwidth is limited (~11 kHz), radio-like quality. Topic is political (Gaza/human rights); words in the 5 s cut not checked."
+
+  # ---- human_shout ----
+  - id: human_shout_goal_01
+    sound_type: human_shout
+    original: originals/human_shout/human_shout_goal_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Goal_Shout.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/2/28/Goal_Shout.ogg"
+    author: "Frogfriend99"
+    license: "CC BY-SA 3.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/3.0"
+    excerpt: {start_s: 0.1888, end_s: 5}
+    evidence: []
+    basis: "team-chosen test arm; no literature basis"
+    flagged: false
+    notes: "'Person shouting GOOOOAAAAAALLLL!' (own work). One long sustained shout; onset at ~0.15 s, loudest in the first ~1.5 s then slowly decaying over ~11 s. Excerpt = first 5 s, start moved to 0.1888 s (19 ms into the shout) so the onset rise is under 5 ms: the first ~20 ms rise only passed while the -12 LUFS limiting flattened the peak. Gender not stated on page."
+  - id: human_shout_man_battlecry_04
+    sound_type: human_shout
+    original: originals/human_shout/human_shout_man_battlecry_04.flac
+    source_url: "https://opengameart.org/content/soldier-voice-acting"
+    media_url: "https://opengameart.org/sites/default/files/battlecries.ogg"
+    author: "kurt (OpenGameArt)"
+    license: "CC BY 3.0"
+    license_url: "http://creativecommons.org/licenses/by/3.0/"
+    excerpt: {start_s: 5.3841, end_s: 6.8}
+    evidence: []
+    basis: "team-chosen test arm; no literature basis"
+    flagged: false
+    notes: "Amateur voice-acting 'battlecries' take sheet (21 s, many short yells separated by digital silence). Excerpt holds the loudest yells (three short cries, loudest at ~6.55 s, peak 0 dBFS in source). Words unknown. Uploader notes these are unmixed practice recordings. Start moved from 5.25 to 5.3841 s (19 ms into the first yell) so the onset rise is under 5 ms: its ~25 ms rise only passed while the -12 LUFS limiting flattened the peak."
+  - id: human_shout_woman_answer_me_02
+    sound_type: human_shout
+    original: originals/human_shout/human_shout_woman_answer_me_02.flac
+    source_url: "https://opengameart.org/content/answer-me-0"
+    media_url: "https://opengameart.org/sites/default/files/answer_me_1.ogg"
+    author: "AuraVoice (voice-over artist; OpenGameArt uploader Nocturnal_Vanguard)"
+    license: "CC0 1.0"
+    license_url: "http://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: null
+    evidence: []
+    basis: "team-chosen test arm; no literature basis"
+    flagged: false
+    notes: "Voice-actor SFX: female voice yelling 'Answer me!' (two takes/phrases, ~2.5 s total). Clean studio recording, no clipping. Uploader account name differs from the performer named in the description ('Hi I'm AuraVoice')."
+
+  # ---- human_scream ----
+  - id: human_scream_ahhh_02
+    sound_type: human_scream
+    original: originals/human_scream/human_scream_ahhh_02.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:UncleSigmund_-_ahhh_(cc0)_(freesound).mp3"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/3/32/UncleSigmund_-_ahhh_%28cc0%29_%28freesound%29.mp3"
+    author: "UncleSigmund (Freesound sound 30988)"
+    license: "CC0 1.0"
+    license_url: "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+    excerpt: {start_s: 0.08, end_s: 2.56}
+    evidence: []
+    basis: "team-chosen test arm; no literature basis"
+    flagged: false
+    notes: "'Someone screams \"ahhh\"' - a ~2.4 s sustained scream starting immediately. Hosted on Commons (copied from Freesound). Lossy mp3 source; peak -0.5 dBFS, no clipped samples. Speaker gender not stated (sounds-like not verified)."
+  - id: human_scream_woman_01
+    sound_type: human_scream
+    original: originals/human_scream/human_scream_woman_01.flac
+    source_url: "https://opengameart.org/content/female-scream-1"
+    media_url: "https://opengameart.org/sites/default/files/female_scream_1.ogg"
+    author: "AuraVoice (voice-over artist; OpenGameArt uploader Nocturnal_Vanguard)"
+    license: "CC0 1.0"
+    license_url: "http://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: null
+    evidence: []
+    basis: "team-chosen test arm; no literature basis"
+    flagged: false
+    notes: "Voice-actor SFX: female scream, ~1 s of loud scream (0.65-1.25 s) in a 1.8 s file. Clean, no clipping, silent background. Same performer as human_shout_woman_answer_me_02 (different recording)."
+
+  # ---- dog_bark ----
+  - id: dog_bark_amada44_03
+    sound_type: dog_bark
+    original: originals/dog_bark/dog_bark_amada44_03.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:A_dog_making_noises_and_barking.flac"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/e/e2/A_dog_making_noises_and_barking.flac"
+    author: "Amada44 (Wikimedia Commons)"
+    license: "CC BY-SA 3.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/3.0"
+    excerpt: {start_s: 8.55, end_s: 13.95}
+    evidence: [51, 123, 124]
+    basis: null
+    flagged: false
+    notes: "Close-mic dog (breed/size not stated) barking; excerpt is the final run of ~6 loud barks (earlier part of file is whining/noises). Lossless 24-bit source, kept as 24-bit in s32 FLAC. QUALITY CAVEAT: the original recording clips at bark peaks (max 0.0 dBFS, ~127 samples at full scale) - audible as slight harshness. Same uploader also has 'Barking of a dog.ogg' (not used, likely same dog)."
+  - id: dog_bark_nono_04
+    sound_type: dog_bark
+    original: originals/dog_bark/dog_bark_nono_04.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Dog_barking.webm"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/b/be/Dog_barking.webm"
+    author: "Dr. Nono YesMaybe (Wikimedia Commons)"
+    license: "CC BY-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0"
+    excerpt: {start_s: 4.106, end_s: 10.106}
+    evidence: [51, 123, 124]
+    basis: null
+    flagged: false
+    notes: "A dog (breed/size not stated; bark fundamental ~520 Hz suggests medium dog) barking repeatedly; excerpt has ~10 barks, often in doubles. QUALITY CAVEAT: recording is hot and clips at bark peaks (max 0.0 dBFS, ~138 samples at full scale; Opus decode exceeds full scale and is clipped on s16 conversion). Lossy source. Use as backup to clips 01/02."
+  - id: dog_bark_rome_street_02
+    sound_type: dog_bark
+    original: originals/dog_bark/dog_bark_rome_street_02.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Barking_dog_in_Rome.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/f/f0/Barking_dog_in_Rome.ogg"
+    author: "Nicholas Gemini (Wikimedia Commons)"
+    license: "CC BY-SA 3.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/3.0"
+    excerpt: {start_s: 11.25, end_s: 17.25}
+    evidence: [51, 123, 124]
+    basis: null
+    flagged: false
+    notes: "Single medium-size dog (breed unknown, bark fundamental ~600-750 Hz) barking at a distance in a Rome street; ~7 barks in doubled pairs ~1.5 s apart. Some urban ambience; quieter overall (peak -12.3 dBFS, mean -32.6 dB). Not clipped. Lossy source."
+  - id: dog_bark_rottweiler_01
+    sound_type: dog_bark
+    original: originals/dog_bark/dog_bark_rottweiler_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Rottweiler_Barking.oga"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/b/b6/Rottweiler_Barking.oga"
+    author: "MichaeltheFox8621 (Wikimedia Commons)"
+    license: "CC BY-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0"
+    excerpt: {start_s: 16.782, end_s: 22.782}
+    evidence: [51, 123, 124]
+    basis: null
+    flagged: false
+    notes: "Rottweiler (described as 'a medium rottweiler barking at the field'), outdoors. Excerpt is a run of ~10 sharp alert barks (~0.6 s spacing), the densest/loudest run in the file. Clean, no clipping (peak -9.3 dBFS). Source is lossy Vorbis, so FLAC is a lossless copy of a lossy decode."
+
+  # ---- siren ----
+  - id: siren_hilo_01
+    sound_type: siren
+    original: originals/siren/siren_hilo_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: [21, 60]
+    basis: "artificial comparison arm"
+    flagged: false
+    notes: "synthetic. Hi-lo two-tone 960/770 Hz"
+  - id: siren_hyperyelp_01
+    sound_type: siren
+    original: originals/siren/siren_hyperyelp_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: [21, 60]
+    basis: "artificial comparison arm"
+    flagged: false
+    notes: "synthetic. Hyper-yelp: 900-2200 Hz at 11 Hz, five 0.8 s bursts"
+  - id: siren_wail_01
+    sound_type: siren
+    original: originals/siren/siren_wail_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: [21, 60]
+    basis: "artificial comparison arm"
+    flagged: false
+    notes: "synthetic. Wail: 650-1500 Hz slow sweep"
+  - id: siren_yelp_01
+    sound_type: siren
+    original: originals/siren/siren_yelp_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: [21, 60]
+    basis: "artificial comparison arm"
+    flagged: false
+    notes: "synthetic. Yelp: 700-1700 Hz sawtooth sweep, 3.3/s"
+
+  # ---- raptor ----
+  - id: raptor_coopers_hawk_01
+    sound_type: raptor
+    original: originals/raptor/raptor_coopers_hawk_01.flac
+    source_url: "https://xeno-canto.org/794271"
+    media_url: "https://xeno-canto.org/794271/download"
+    author: "Scott Crabtree"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 1.25, end_s: 6.6}
+    evidence: [126]
+    basis: null
+    flagged: false
+    notes: "Cooper's Hawk (Accipiter cooperii). xeno-canto XC794271; type: call, duet. Rock garden (near Tucson), Pima County, Arizona, United States, 2022-02-05 09:30. Four harsh 'scream' calls of an agitated pair (female leading), recorded from ~3 m with a phone. Very close and loud; faint Verdin in background between calls. Source file: 'XC794271 - Cooper's Hawk - Accipiter cooperii.wav'."
+  - id: raptor_red_shouldered_hawk_01
+    sound_type: raptor
+    original: originals/raptor/raptor_red_shouldered_hawk_01.flac
+    source_url: "https://xeno-canto.org/712976"
+    media_url: "https://xeno-canto.org/712976/download"
+    author: "Bruce Lagerquist"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 2.006, end_s: 7.206}
+    evidence: [126]
+    basis: null
+    flagged: false
+    notes: "Red-shouldered Hawk (Buteo lineatus). xeno-canto XC712976; type: call. Fort Drum Marsh, Indian River County, Florida, United States, 2022-03-05 07:27. Series of 7 loud 'kee-ah' calls from a perched bird at the edge of a swamp. Very loud/close; the decoded MP3 peaks above 0 dBFS, so 102 samples (0.02%) sit at full scale in the 16-bit FLAC (minor clipping, likely already present in the source). Source file: 'XC712976 - Red-shouldered Hawk - Buteo lineatus.mp3'."
+  - id: raptor_red_tailed_hawk_01
+    sound_type: raptor
+    original: originals/raptor/raptor_red_tailed_hawk_01.flac
+    source_url: "https://xeno-canto.org/914680"
+    media_url: "https://xeno-canto.org/914680/download"
+    author: "Bobby Wilcox"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 2.5, end_s: 4.5}
+    evidence: [126]
+    basis: null
+    flagged: false
+    notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC914680; type: call, flight call. Gerlach, Washoe County, Nevada, United States, 2024-06-14 05:30. Single classic descending 'keee-arr' scream (one of two in the source; the second is at ~8.6 s). Bird in flight ~20 m away per recordist. Clean, high SNR, no background species. Source file: 'XC914680 - Red-tailed Hawk - Buteo jamaicensis.mp3'."
+  - id: raptor_red_tailed_hawk_02
+    sound_type: raptor
+    original: originals/raptor/raptor_red_tailed_hawk_02.flac
+    source_url: "https://xeno-canto.org/973864"
+    media_url: "https://xeno-canto.org/973864/download"
+    author: "Richard E. Webster"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 0.583, end_s: 7.618}
+    evidence: [126]
+    basis: null
+    flagged: false
+    notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC973864; type: call. San Bernardino National Wildlife Refuge, Cochise County, Arizona, United States, 2023-12-05 10:24. Single scream given on take-off (~0.6-2.0 s), rest of the clip is quiet ambience. Parabolic mic, 24-bit WAV source, very clean. Recordist notes the call is 'different from recorded earlier'. Source file: 'XC973864 - Red-tailed Hawk - Buteo jamaicensis.wav'."
+
+  # ---- woodchuck_alarm ----
+  - id: woodchuck_alarm_ohio_whistle_03
+    sound_type: woodchuck_alarm
+    original: originals/woodchuck_alarm/woodchuck_alarm_ohio_whistle_03.flac
+    source_url: "https://www.inaturalist.org/observations/156714680"
+    media_url: "https://static.inaturalist.org/sounds/656808.wav?1682506220"
+    author: "William Hull (iNaturalist user mangoverde)"
+    license: "CC BY-NC 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc/4.0/"
+    excerpt: {start_s: 2.099, end_s: 4.099}
+    evidence: [53]
+    basis: "vigilance only; recruitment risk; team call pending"
+    flagged: true
+    notes: "Groundhog (Marmota monax) alarm whistle, Ohio, April 2023. Research Grade (3 IDs agree); observer annotated whistles at 2, 38.5, 78.5 and 130 s. Excerpt holds the first whistle (~3.2-3.5 kHz, ~0.2 s) starting 0.15 s in; birdsong in the background. Lossless source. Non-commercial license (fine for student project)."
+  - id: woodchuck_alarm_vt_whistle_02
+    sound_type: woodchuck_alarm
+    original: originals/woodchuck_alarm/woodchuck_alarm_vt_whistle_02.flac
+    source_url: "https://www.inaturalist.org/observations/169572746"
+    media_url: "https://static.inaturalist.org/sounds/751895.m4a?1687783250"
+    author: "Kent P. McFarland (iNaturalist user kpmcfarland)"
+    license: "CC0 1.0"
+    license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: {start_s: 3.7, end_s: 5.7}
+    evidence: [53]
+    basis: "vigilance only; recruitment risk; team call pending"
+    flagged: true
+    notes: "Groundhog (Marmota monax) alarm whistle, Woodstock, VT, 2023-05-29. Research Grade (2 IDs agree). Loud whistle (~3.6-3.8 kHz) at ~0.15 s, followed by ~0.8 s of lower chatter/tail (~1.7-2.7 kHz). Some broadband background. A second whistle at ~25.6 s in the source. Lossy source."
+  - id: woodchuck_alarm_wv_whistle_01
+    sound_type: woodchuck_alarm
+    original: originals/woodchuck_alarm/woodchuck_alarm_wv_whistle_01.flac
+    source_url: "https://www.inaturalist.org/observations/47450515"
+    media_url: "https://static.inaturalist.org/sounds/96927.m4a?1590531416"
+    author: "William Harmon (iNaturalist user stellarlimpkin)"
+    license: "CC BY 4.0"
+    license_url: "https://creativecommons.org/licenses/by/4.0/"
+    excerpt: {start_s: 16.55, end_s: 18.55}
+    evidence: [53]
+    basis: "vigilance only; recruitment risk; team call pending"
+    flagged: true
+    notes: "Groundhog (Marmota monax) alarm whistle, Gilmer County, WV, 2020-05-26. Research Grade observation (3 IDs agree). Single sharp high whistle (~3-3.8 kHz, ~0.15 s) at 0.15 s into the clip, followed by a faint lower tail; very clean background. Same animal whistles again at ~33.5 s and ~52.9 s in the source. Sound license 'CC BY' per iNat sound record; page shows CC BY 4.0. Lossy source."
