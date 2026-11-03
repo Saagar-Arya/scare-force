@@ -50,7 +50,11 @@ sound:
   mixer_card: Headphones
   mixer_control: PCM
   level: 80                 # percent, set before every play
-  dir: sounds               # clips sorted by name; play(n) plays the n-th one
+  source: library           # library | folder (folder = the original behavior: dir's clips at random)
+  library: scare/sounds/library.yaml   # library: the deterrence clip library, stepped through in
+                            # order (alternates sound types)
+  library_mode: generic     # library: generic | species | auto (species/auto: the label's set)
+  dir: sounds               # folder: clips sorted by name; play(n) plays the n-th one
 
 controller:
   labels: [raccoon, groundhog, squirrel]  # only these labels trigger

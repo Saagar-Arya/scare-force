@@ -2,7 +2,7 @@
 
 With several cameras (camera.ids) only one streams at a time, so the loop watches each for
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
-a random clip (never the same one twice in a row), servos flapping up/down and the light on. After
+a clip (sound.source: library rotation or random from a folder), servos flapping up/down and the light on. After
 scare_seconds everything stops, then nothing fires again until cooldown_seconds have passed.
 Detection and switching keep running the whole time. Both models see the same frame.
 Animal boxes matching person boxes are rejected; smaller held animals remain eligible.
@@ -13,7 +13,6 @@ Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C sto
 """
 
 import argparse
-import random
 import time
 
 from . import ROOT, load_config
@@ -61,7 +60,6 @@ def main() -> None:
     servo_up = False
     active_target = None
     active_camera = None
-    last_clip = None
     last_frame_t = time.monotonic()
     fps = 0.0
     next_switch = last_frame_t + c["dwell_seconds"]
@@ -116,9 +114,7 @@ def main() -> None:
                 quiet_until = scare_until + rules["cooldown_seconds"]
                 next_flap = now
                 light.on()
-                choices = [i for i in range(len(sound.clips)) if i != last_clip] or [0]
-                last_clip = random.choice(choices)
-                sound.play(last_clip)
+                sound.play(sound.next_clip(best.label))
 
             if scare_until and now < scare_until:
                 if now >= next_flap:
