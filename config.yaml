@@ -77,3 +77,8 @@ controller:
                             # reverses the servos mid-move, and that current spike can brown out
                             # their supply
   cooldown_seconds: 10      # quiet time after a scare before the next one
+
+log:
+  # One CSV row per scare, written when it starts: epoch_s, time, camera, label, confidence, clip,
+  # channels. Relative to the repo folder. null = no file, terminal output only (the original).
+  activations: logs/activations.csv

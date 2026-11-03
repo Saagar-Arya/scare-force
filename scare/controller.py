@@ -17,6 +17,7 @@ import argparse
 import time
 
 from . import ROOT, load_config
+from .activation_log import ActivationLog
 from .camera import Camera
 from .detector import Detector
 from .person_guard import PersonGuard
@@ -47,6 +48,8 @@ def main() -> None:
         raise ValueError("Person detector labels must include 'person'.")
     # Validate policy settings before hardware initialization.
     PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd.get("same_object_iou", 0.5))
+    log_path = (cfg.get("log") or {}).get("activations")
+    activations = ActivationLog(ROOT / log_path) if log_path else None  # null: terminal only
     camera = Camera(c["width"], c["height"], c["ids"])
     guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
                           pd.get("same_object_iou", 0.5)) for _ in camera.ids]
@@ -115,7 +118,11 @@ def main() -> None:
                 quiet_until = scare_until + rules["cooldown_seconds"]
                 next_flap = now
                 light.start()  # light.pattern: steady, strobe or random
-                sound.play(sound.next_clip(best.label))
+                clip = sound.next_clip(best.label)
+                sound.play(clip)
+                if activations:
+                    activations.write(camera.ids[camera.current], best.label, best.confidence,
+                                      clip.name, [f"light:{light.pattern}", "sound", "servos"])
 
             if scare_until and now < scare_until:
                 if now >= next_flap:
@@ -175,6 +182,8 @@ def main() -> None:
         servos.close()
         light.close()
         camera.close()
+        if activations:
+            activations.close()
         if not args.headless:
             display.close()
 
