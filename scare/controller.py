@@ -2,8 +2,9 @@
 
 With several cameras (camera.ids) only one streams at a time, so the loop watches each for
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
-a clip (sound.source: library rotation or random from a folder), servos flapping up/down and the light on. After
-scare_seconds everything stops, then nothing fires again until cooldown_seconds have passed.
+a clip (sound.source: library rotation or random from a folder), servos flapping up/down and the
+light on (light.pattern: steady, strobe or random). After scare_seconds everything stops, then
+nothing fires again until cooldown_seconds have passed.
 Detection and switching keep running the whole time. Both models see the same frame.
 Animal boxes matching person boxes are rejected; smaller held animals remain eligible.
 Person regions and active trigger positions are scoped to their source camera.
@@ -49,7 +50,7 @@ def main() -> None:
     camera = Camera(c["width"], c["height"], c["ids"])
     guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
                           pd.get("same_object_iou", 0.5)) for _ in camera.ids]
-    light = Light(cfg["light"]["pin"], cfg["light"]["active_high"])
+    light = Light.from_config(cfg["light"])
     sound = Sound(cfg["sound"], ROOT)
     sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
     servos = Servos(cfg["servos"])
@@ -113,7 +114,7 @@ def main() -> None:
                 scare_until = now + rules["scare_seconds"]
                 quiet_until = scare_until + rules["cooldown_seconds"]
                 next_flap = now
-                light.on()
+                light.start()  # light.pattern: steady, strobe or random
                 sound.play(sound.next_clip(best.label))
 
             if scare_until and now < scare_until:
