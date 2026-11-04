@@ -4,7 +4,7 @@ With several cameras (camera.ids) only one streams at a time, so the loop watche
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
 a random clip (never the same one twice in a row), servos flapping up/down and the light on. After
 scare_seconds everything stops, then nothing fires again until cooldown_seconds have passed.
-Detection and switching keep running the whole time. Both models see the same frame.
+Detection and switching keep running the whole time. A single four-class model handles each frame.
 Animal boxes matching person boxes are rejected; smaller held animals remain eligible.
 Person regions and active trigger positions are scoped to their source camera.
 
@@ -20,6 +20,7 @@ from . import ROOT, load_config
 from .camera import Camera
 from .detector import Detector
 from .person_guard import PersonGuard
+from .confirmation import TargetConfirmer
 from .light import Light
 from .servos import Servos
 from .sound import Sound
@@ -39,17 +40,18 @@ def main() -> None:
 
     detector = Detector(ROOT / d["model"], ROOT / d["labels"], d["num_threads"],
                         d["conf_threshold"], d["iou_threshold"])
-    # Require both models before opening hardware; never silently skip person checks.
-    pd = cfg["person_detector"]
-    person_detector = Detector(ROOT / pd["model"], ROOT / pd["labels"], pd["num_threads"],
-                               pd["conf_threshold"], pd["iou_threshold"])
-    if "person" not in person_detector.labels:
-        raise ValueError("Person detector labels must include 'person'.")
-    # Validate policy settings before hardware initialization.
-    PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd.get("same_object_iou", 0.5))
+    # No second detector: the exported model must contain these four classes.
+    if detector.labels != ["raccoon", "groundhog", "squirrel", "person"]:
+        raise ValueError("Expected four-class labels: raccoon, groundhog, squirrel, person")
+    pd = cfg["person_filter"]
+    guard = PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd["same_object_iou"])
+    confirmer = TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
+                                rules["confirmation_gap_seconds"])
     camera = Camera(c["width"], c["height"], c["ids"])
     guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
-                          pd.get("same_object_iou", 0.5)) for _ in camera.ids]
+                          pd["same_object_iou"]) for _ in camera.ids]
+    confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
+                                  rules["confirmation_gap_seconds"]) for _ in camera.ids]
     light = Light(cfg["light"]["pin"], cfg["light"]["active_high"])
     sound = Sound(cfg["sound"], ROOT)
     sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
@@ -81,9 +83,9 @@ def main() -> None:
             if switch_t is not None:  # time the switch up to the new camera's first frame
                 switch_ms = (time.monotonic() - switch_t) * 1000
                 next_switch = time.monotonic() + c["dwell_seconds"]
-            people = [det for det in person_detector.detect(frame) if det.label == "person"]
-            animal_detections = detector.detect(frame)
-            detections = animal_detections + people
+            detections = detector.detect(frame)
+            people = [det for det in detections if det.label == "person"]
+            animal_detections = [det for det in detections if det.label in rules["labels"]]
             now = time.monotonic()
             guard = guards[camera.current]
             guard.update(people, now)
@@ -93,6 +95,7 @@ def main() -> None:
             ]
             rejected = [det for det in hits if guard.blocks(det)]
             hits = [det for det in hits if not guard.blocks(det)]
+            hits = confirmers[camera.current].update(hits, now)
             if (scare_until and active_camera == camera.current and
                     active_target is not None and guard.blocks(active_target)):
                 print("[controller] person matches active target box: stopping scare", flush=True)

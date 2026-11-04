@@ -11,21 +11,17 @@ camera:
   dwell_seconds: 2.0        # watch each camera this long, then switch (a switch takes ~0.5 s)
 
 detector:
-  model: models/toys_320.onnx
-  labels: models/toy_labels.txt
+  model: models/scare_four_320.onnx
+  labels: models/scare_four_labels.txt
   num_threads: 4
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
 
-# Original pretrained model: only person detections are used.
-person_detector:
-  model: models/yolo11n_320.onnx
-  labels: models/coco.txt
-  num_threads: 4
+# Uses person predictions from the SAME four-class model (no second ONNX session).
+person_filter:
   conf_threshold: 0.35
-  iou_threshold: 0.45
-  hold_seconds: 0.5         # retain recent person regions for this camera only
-  same_object_iou: 0.5      # reject similar boxes, allow smaller held-animal boxes
+  hold_seconds: 0.5
+  same_object_iou: 0.5
 
 light:
   pin: 26                   # GPIO26 = physical pin 37, drives the light's relay
@@ -54,7 +50,10 @@ sound:
 
 controller:
   labels: [raccoon, groundhog, squirrel]  # only these labels trigger
-  min_confidence: 0.5
+  min_confidence: 0.65      # starting threshold; check validation false triggers and recall
+  confirm_frames: 3         # repeated detections reduce one-frame false alarms
+  confirm_iou: 0.3
+  confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long the scare lasts
   flap_seconds: 0.5         # time between servo up and down while scaring
   return_deg_per_s: 90      # after a scare, ease back down this fast: jumping right after an up flap
