@@ -57,10 +57,8 @@ sound:
   mixer_card: Headphones
   mixer_control: PCM
   level: 80                 # percent, set before every play
-  source: library           # library | legacy (legacy = the original behavior: dir's clips at random)
-  library: scare/sounds/library.yaml   # library: its generic set, one clip per scare in order
+  library: scare/sounds/library.yaml   # its generic set, one clip per scare in order
                             # (alternates sound types), from a random start each run, wrapping
-  dir: sounds               # legacy: clips sorted by name; play(n) plays the n-th one
 
 controller:
   labels: [raccoon, groundhog, squirrel]  # only these labels trigger

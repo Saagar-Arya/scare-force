@@ -1,12 +1,9 @@
 """Sound through the 3.5 mm jack. play(clip) starts a clip in the background and returns at once.
 
-Where the clips come from is sound.source in config.yaml:
-    legacy   the original behavior: the .wav files in sound.dir, sorted by name (0_siren.wav is
-             clip 0, ...); next_clip() picks one at random, never the same one twice in a row.
-    library  the deterrence sound library's generic set (scare/sounds/library.yaml, see
-             scare/sound_library.py), in the library's order, which alternates sound types.
-             next_clip() starts at a random clip each run (a restart doesn't replay the same
-             opening clips), advances one clip per scare and wraps.
+Clips are the sound library's generic set (sound.library in config.yaml, see
+scare/sound_library.py), in the library's order, which alternates sound types. next_clip()
+starts at a random clip each run (a restart doesn't replay the same opening clips), advances one
+clip per scare and wraps.
 Plays straight to ALSA with aplay: it starts faster than going through PipeWire. aplay runs under
 `setpriv --pdeathsig TERM`, so the kernel stops it if this process dies for any reason (even
 kill -9): a clip never outlives the program. stop() terminates it and waits for it.
@@ -23,34 +20,20 @@ import threading
 import time
 from pathlib import Path
 
-SOURCES = ("legacy", "library")
+from .sound_library import Library
 
 
 class Sound:
     def __init__(self, cfg: dict, root: Path):
         self.device = cfg["device"]
-        self.source = cfg.get("source", "legacy")
-        if self.source not in SOURCES:
-            raise ValueError(f"sound.source must be {' or '.join(SOURCES)}, got {self.source!r}")
-        self.library = None
-        if self.source == "library":
-            from .sound_library import Library
-
-            self.library = Library.load(root / cfg["library"])
-            self.clips = self.library.clips_for()  # the generic set, in play order
-            self.types = {c["id"]: c["sound_type"] for c in self.library.clip_records()}
-            print(f"[sound] library {cfg['library']}: profile {self.library.profile}, "
-                  f"{len(self.clips)} generic clips", flush=True)
-        else:
-            self.clips = sorted((root / cfg["dir"]).glob("*.wav"))
-            if not self.clips:
-                raise RuntimeError(f"no .wav files in {root / cfg['dir']}")
-            # legacy clips have no recorded type: 0_siren.wav -> siren
-            self.types = {c.stem: c.stem.split("_", 1)[-1] for c in self.clips}
+        library = Library.load(root / cfg["library"])
+        self.clips = library.clips_for()  # the generic set, in play order
+        self.types = {c["id"]: c["sound_type"] for c in library.clip_records()}
+        print(f"[sound] library {cfg['library']}: profile {library.profile}, "
+              f"{len(self.clips)} generic clips", flush=True)
         setpriv = shutil.which("setpriv")
         self._wrap = [setpriv, "--pdeathsig", "TERM"] if setpriv else []
-        self._next = random.randrange(len(self.clips))  # library: next clip in the rotation
-        self._last: int | None = None    # legacy: index of the last clip picked
+        self._next = random.randrange(len(self.clips))  # index of the next clip in the rotation
         self.proc: subprocess.Popen | None = None
         self.current: Path | None = None
         self.started_t: float | None = None   # monotonic: aplay process started
@@ -63,10 +46,6 @@ class Sound:
 
     def next_clip(self) -> Path:
         """The clip the next scare should play."""
-        if self.library is None:  # legacy: Demo 1-3's picker, unchanged
-            choices = [i for i in range(len(self.clips)) if i != self._last] or [0]
-            self._last = random.choice(choices)
-            return self.clips[self._last]
         i = self._next
         self._next = (i + 1) % len(self.clips)
         return self.clips[i]

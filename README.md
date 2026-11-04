@@ -7,7 +7,7 @@ scare/camera.py      Camera.read() -> RGB frame, Camera.select(i) switches camer
 scare/detector.py    Detector.detect(frame) -> [Detection(label, confidence, box)]
 scare/light.py       Light.on() / off() / start() (pattern)  GPIO26 (pin 37) -> relay
 scare/servos.py      Servos.up() / down() / set(angle)      GPIO19, hardware PWM
-scare/sound.py       Sound.play(n) / stop() / is_playing()  3.5 mm jack, clips in sounds/
+scare/sound.py       Sound.play(clip) / stop() / is_playing()  3.5 mm jack, clips in scare/sounds/
 scare/controller.py  main loop: which labels trigger, how long, cooldown
 scare/display.py     debug window: cameras side by side, boxes, status bar
 config.yaml          cameras, pins, servo angles, labels, timings, volume
@@ -73,5 +73,6 @@ Everything together. A raccoon, groundhog or squirrel (models/scare_four_320.onn
 
 ## Sounds
 
-`sounds/` holds generic placeholder clips. `play(n)` plays the n-th `.wav` sorted by name, so
-name them `0_...`, `1_...`. Swap in real clips any time.
+Clips come from the sound library in `scare/sounds/` (see `scare/sounds/SOURCE.md` for where they
+come from, their licenses and how to update them). Each scare plays the next clip of the generic
+set, alternating sound types.
