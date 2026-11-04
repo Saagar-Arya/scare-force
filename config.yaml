@@ -28,20 +28,22 @@ person_detector:
   same_object_iou: 0.5      # reject similar boxes, allow smaller held-animal boxes
 
 light:
+  # The lamp is switched by a 1-channel relay: on or off only, no dimming. The relay board is
+  # powered through the deterrent off switch, so with that switch OFF nothing lights.
   pin: 26                   # GPIO26 = physical pin 37, drives the light's relay
   active_high: true         # false if the relay board switches on when its input is LOW
   # What the light does during a scare. steady = on the whole scare (the original behavior);
   # strobe = on duty/rate_hz, off (1-duty)/rate_hz, repeating; random = strobe with every on and
-  # off time varied by +/- jitter (varied timing slows habituation).
+  # off time varied by +/- jitter (varied timing slows habituation). Checked at startup, before
+  # the cameras open.
   pattern: strobe           # steady | strobe | random
-  driver: relay             # relay | mosfet: a relay may not switch faster than relay_min_toggle_s
   rate_hz: 2.0              # flashes per second (strobe/random)
   duty: 0.5                 # fraction of each flash period the light is on, 0 < duty < 1
   jitter: 0.3               # random only: each on/off time scaled by a factor in [1-jitter, 1+jitter]
   # Flashing at 3-60 Hz is a seizure hazard for photosensitive people; staying under 3 Hz protects
   # farm staff and visitors. Raising this is a team decision.
   max_rate_hz: 3.0          # safety ceiling on the fastest flash (random: rate_hz / (1 - jitter))
-  relay_min_toggle_s: 0.15  # relay only: shortest allowed on or off time
+  relay_min_toggle_s: 0.15  # shortest allowed relay on or off time; 0.15 is the floor (can only go up)
 
 servos:
   # Hardware PWM: needs `dtoverlay=pwm,pin=19,func=2` in /boot/firmware/config.txt (channel 1 on
