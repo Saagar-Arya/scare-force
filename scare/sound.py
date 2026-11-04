@@ -1,11 +1,11 @@
 """Sound through the 3.5 mm jack. play(clip) starts a clip in the background and returns at once.
 
 Where the clips come from is sound.source in config.yaml:
-    folder   the .wav files in sound.dir, sorted by name (0_siren.wav is clip 0, ...); next_clip()
-             picks one at random, never the same one twice in a row.
-    library  the deterrence sound library (scare/sounds/library.yaml, see scare/sound_library.py):
-             the label's set (generic mode: always the generic set), and next_clip() steps through
-             it in the library's order, which alternates sound types. Starts at a random place.
+    legacy   the original behavior: the .wav files in sound.dir, sorted by name (0_siren.wav is
+             clip 0, ...); next_clip() picks one at random, never the same one twice in a row.
+    library  the deterrence sound library's generic set (scare/sounds/library.yaml, see
+             scare/sound_library.py), in the library's order, which alternates sound types.
+             next_clip() starts at clip 0, advances one clip per scare and wraps.
 Plays straight to ALSA with aplay: it starts faster than going through PipeWire.
 
 Self-test: python -m scare.sound   (plays every clip in turn)
@@ -15,30 +15,29 @@ import random
 import subprocess
 from pathlib import Path
 
-SOURCES = ("folder", "library")
+SOURCES = ("legacy", "library")
 
 
 class Sound:
     def __init__(self, cfg: dict, root: Path):
         self.device = cfg["device"]
-        self.source = cfg.get("source", "folder")
+        self.source = cfg.get("source", "legacy")
         if self.source not in SOURCES:
             raise ValueError(f"sound.source must be {' or '.join(SOURCES)}, got {self.source!r}")
         self.library = None
         if self.source == "library":
             from .sound_library import Library
 
-            self.library = Library.load(root / cfg["library"], mode=cfg.get("library_mode"))
-            self.clips = self.library.clips_for(None)  # the generic set
-            print(f"[sound] library {cfg['library']}: mode {self.library.mode}, profile "
-                  f"{self.library.profile}, {len(self.clips)} generic clips", flush=True)
+            self.library = Library.load(root / cfg["library"], mode="generic")
+            self.clips = self.library.clips_for(None)  # the generic set, in play order
+            print(f"[sound] library {cfg['library']}: profile {self.library.profile}, "
+                  f"{len(self.clips)} generic clips", flush=True)
         else:
             self.clips = sorted((root / cfg["dir"]).glob("*.wav"))
             if not self.clips:
                 raise RuntimeError(f"no .wav files in {root / cfg['dir']}")
-        self._sets: dict[str, list[Path]] = {}   # library: set name -> clips, filled on first use
-        self._next: dict[str, int] = {}          # library: set name -> index of its next clip
-        self._last: int | None = None            # folder: index of the last clip picked
+        self._next = 0                   # library: index of the next clip in the rotation
+        self._last: int | None = None    # legacy: index of the last clip picked
         self.proc: subprocess.Popen | None = None
         self.current: Path | None = None
         print(f"[sound] setting {cfg['mixer_card']}/{cfg['mixer_control']} to {cfg['level']}%",
@@ -46,19 +45,15 @@ class Sound:
         subprocess.run(["amixer", "-q", "-M", "-c", cfg["mixer_card"], "sset",
                         cfg["mixer_control"], f"{cfg['level']}%", "unmute"], check=False)
 
-    def next_clip(self, label: str | None = None) -> Path:
-        """The clip the next scare should play (label only matters in species/auto library mode)."""
-        if self.library is None:
+    def next_clip(self) -> Path:
+        """The clip the next scare should play."""
+        if self.library is None:  # legacy: Demo 1-3's picker, unchanged
             choices = [i for i in range(len(self.clips)) if i != self._last] or [0]
             self._last = random.choice(choices)
             return self.clips[self._last]
-        name = self.library.set_for(label)
-        if name not in self._sets:
-            self._sets[name] = self.library.clips_for(label)
-            self._next[name] = random.randrange(len(self._sets[name]))
-        clips, i = self._sets[name], self._next[name]
-        self._next[name] = (i + 1) % len(clips)
-        return clips[i]
+        i = self._next
+        self._next = (i + 1) % len(self.clips)
+        return self.clips[i]
 
     def play(self, clip: Path | int) -> None:
         """Play a clip (a path, or an index into self.clips), cutting off whatever is playing now."""

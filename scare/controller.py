@@ -2,7 +2,7 @@
 
 With several cameras (camera.ids) only one streams at a time, so the loop watches each for
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
-a clip (sound.source: library rotation or random from a folder), servos flapping up/down and the
+a clip (sound.source: library rotation, or legacy: random from a folder), servos flapping up/down and the
 light on (light.pattern: steady, strobe or random). After scare_seconds everything stops, then
 nothing fires again until cooldown_seconds have passed.
 Detection and switching keep running the whole time. Both models see the same frame.
@@ -118,7 +118,7 @@ def main() -> None:
                 quiet_until = scare_until + rules["cooldown_seconds"]
                 next_flap = now
                 light.start()  # light.pattern: steady, strobe or random
-                clip = sound.next_clip(best.label)
+                clip = sound.next_clip()
                 sound.play(clip)
                 if activations:
                     activations.write(camera.ids[camera.current], best.label, best.confidence,
