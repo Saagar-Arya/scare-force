@@ -5,7 +5,8 @@ Where the clips come from is sound.source in config.yaml:
              clip 0, ...); next_clip() picks one at random, never the same one twice in a row.
     library  the deterrence sound library's generic set (scare/sounds/library.yaml, see
              scare/sound_library.py), in the library's order, which alternates sound types.
-             next_clip() starts at clip 0, advances one clip per scare and wraps.
+             next_clip() starts at a random clip each run (a restart doesn't replay the same
+             opening clips), advances one clip per scare and wraps.
 Plays straight to ALSA with aplay: it starts faster than going through PipeWire. aplay runs under
 `setpriv --pdeathsig TERM`, so the kernel stops it if this process dies for any reason (even
 kill -9): a clip never outlives the program. stop() terminates it and waits for it.
@@ -35,9 +36,9 @@ class Sound:
         if self.source == "library":
             from .sound_library import Library
 
-            self.library = Library.load(root / cfg["library"], mode="generic")
-            self.clips = self.library.clips_for(None)  # the generic set, in play order
-            self.types = {c["id"]: c["sound_type"] for c in self.library.clip_records(None)}
+            self.library = Library.load(root / cfg["library"])
+            self.clips = self.library.clips_for()  # the generic set, in play order
+            self.types = {c["id"]: c["sound_type"] for c in self.library.clip_records()}
             print(f"[sound] library {cfg['library']}: profile {self.library.profile}, "
                   f"{len(self.clips)} generic clips", flush=True)
         else:
@@ -48,7 +49,7 @@ class Sound:
             self.types = {c.stem: c.stem.split("_", 1)[-1] for c in self.clips}
         setpriv = shutil.which("setpriv")
         self._wrap = [setpriv, "--pdeathsig", "TERM"] if setpriv else []
-        self._next = 0                   # library: index of the next clip in the rotation
+        self._next = random.randrange(len(self.clips))  # library: next clip in the rotation
         self._last: int | None = None    # legacy: index of the last clip picked
         self.proc: subprocess.Popen | None = None
         self.current: Path | None = None

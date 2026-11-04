@@ -5,7 +5,7 @@ Camera → YOLO detection → controller → light, servos, sound. One Python pr
 ```
 scare/camera.py      Camera.read() -> RGB frame, Camera.select(i) switches camera
 scare/detector.py    Detector.detect(frame) -> [Detection(label, confidence, box)]
-scare/light.py       Light.on() / off() / strobe(period)    GPIO26 (pin 37) -> relay
+scare/light.py       Light.on() / off() / start() (pattern)  GPIO26 (pin 37) -> relay
 scare/servos.py      Servos.up() / down() / set(angle)      GPIO19, hardware PWM
 scare/sound.py       Sound.play(n) / stop() / is_playing()  3.5 mm jack, clips in sounds/
 scare/controller.py  main loop: which labels trigger, how long, cooldown
@@ -54,15 +54,15 @@ Test each part on its own, from this folder:
 ```bash
 .venv/bin/python -m scare.camera      # saves camera_test_<n>.jpg from every camera
 .venv/bin/python -m scare.detector    # one frame (or pass an image path), prints detections
-.venv/bin/python -m scare.light       # on 2 s, strobe 2 s, off
+.venv/bin/python -m scare.light       # on 2 s, then light.pattern 3 s, off
 .venv/bin/python -m scare.servos      # up, down, release
 .venv/bin/python -m scare.servos sweep  # each servo alone 0-270-0, then both
 .venv/bin/python -m scare.servos mid    # centre (135), then slow sweep +/-60 around it (or pass deg)
 .venv/bin/python -m scare.sound       # plays every clip
 ```
 
-Everything together. A `teddy bear` (any stuffed animal, as far as YOLO's COCO labels go)
-plays a clip, flaps the servos and turns the light on. The window shows every camera side by side
+Everything together. A raccoon, groundhog or squirrel (models/scare_four_320.onnx, confirmed over
+`controller.confirm_frames` frames) plays the next clip, flaps the servos and runs the light pattern. The window shows every camera side by side
 (the ones not streaming right now dimmed, with the age of their last frame), draws every box
 (red = trigger) and a status bar: sound, light, servo angle, scare/cooldown state, fps.
 

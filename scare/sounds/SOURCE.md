@@ -3,7 +3,8 @@
 Everything in this folder is copied, unchanged, from the team's deterrence repo:
 `nikhilmethi/scare-force-plan`, branch `deter/integration`, commit `5301bf3`, folder
 `deterrence/sounds/` (plus `deterrence/sound_library.py` -> `scare/sound_library.py`).
-Byte-identical to that commit when copied (2026-11-03).
+Byte-identical to that commit when copied (2026-11-03). `scare/sound_library.py` has since been
+cut down to the generic set this repo plays; the species sets and levels live in scare-force-plan.
 
 | Here | What it is |
 |---|---|

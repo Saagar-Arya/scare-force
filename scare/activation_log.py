@@ -4,7 +4,7 @@ config.yaml; null = no file, terminal output only). scare/deterrent.py fills it 
 Columns:
     start, end                 local ISO 8601 times, to the millisecond; end = light off (and
                                aplay told to stop), not when the row was written
-    end_reason                 timeout | person_abort | shutdown (Ctrl+C, SIGTERM, an error)
+    end_reason                 timeout | shutdown (Ctrl+C, SIGTERM, an error)
     trigger_source             detection (scare.controller) | manual (scare.deter_test)
     label, confidence, camera  the detection that fired it (empty for manual)
     light_pattern, flashes     steady | strobe | random | off (no light); times the lamp came on

@@ -58,18 +58,16 @@ sound:
   mixer_control: PCM
   level: 80                 # percent, set before every play
   source: library           # library | legacy (legacy = the original behavior: dir's clips at random)
-  library: scare/sounds/library.yaml   # library: its generic set, played in order from the first
-                            # clip, one per scare, wrapping (alternates sound types)
+  library: scare/sounds/library.yaml   # library: its generic set, one clip per scare in order
+                            # (alternates sound types), from a random start each run, wrapping
   dir: sounds               # legacy: clips sorted by name; play(n) plays the n-th one
 
 controller:
   labels: [raccoon, groundhog, squirrel]  # only these labels trigger
   min_confidence:           # per label; labels not listed use default. A plain number sets all.
-    default: 0.5            # starting threshold; check validation false triggers and recall
-    raccoon: 0.35           # lower (bench test)
-    groundhog: 0.35         # lower: the model often under-scores groundhogs (bench test)
-    squirrel: 0.35          # lower as well (bench test)
-  confirm_frames: 1         # 1 = fire on a single frame (bench test); 2-3 cuts one-frame false alarms
+    default: 0.5            # at 0.35 people in view set off scares (raccoon 0.38, squirrel 0.46)
+    # groundhog: 0.45       # the model often under-scores groundhogs; lower only after field checks
+  confirm_frames: 3         # frames in a row (~0.6 s at ~5 fps) before a scare; 1 = single frame
   confirm_iou: 0.3
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long the scare lasts
@@ -80,6 +78,6 @@ controller:
   cooldown_seconds: 10      # quiet time after a scare before the next one
 
 log:
-  # One CSV row per scare, written when it starts: epoch_s, time, camera, label, confidence, clip,
-  # channels. Relative to the repo folder. null = no file, terminal output only (the original).
+  # One CSV row per scare, written when it ends (columns: see scare/activation_log.py).
+  # Relative to the repo folder. null = no file, terminal output only (the original).
   activations: logs/activations.csv

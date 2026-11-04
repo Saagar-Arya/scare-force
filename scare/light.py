@@ -9,7 +9,7 @@ Patterns (light.pattern in config.yaml; ported from scare-force-plan deterrence/
             [1-jitter, 1+jitter]: varied timing slows habituation. The seed is printed.
 The first flash comes on at once. Flashing runs in a background thread on a monotonic schedule
 (no drift); a wake-up more than 20 ms late restarts the schedule from now instead of catching up.
-on(), off() and strobe() stop it first, so off() always leaves the light off.
+on() and off() stop it first, so off() always leaves the light off.
 
 Relay protection: no setting may switch the relay on or off for less than RELAY_MIN_TOGGLE_S
 (0.15 s); light.relay_min_toggle_s can only raise that. An off is always immediate, but the light
@@ -23,7 +23,7 @@ controller calls it before opening the cameras; the constructor calls it again.
 close() leaves the light off and hands the pin back with the pull it had at boot (pull-down when
 active high), so the relay input doesn't float: gpiozero alone leaves it floating, reading HIGH.
 
-Self-test: python -m scare.light   (on 2 s, strobe 2 s, then the configured pattern 3 s, off)
+Self-test: python -m scare.light   (on 2 s, then the configured pattern 3 s, off)
 """
 
 import random
@@ -72,9 +72,6 @@ class Light:
     def check(cls, cfg: dict) -> None:
         """Validate light settings (config.yaml's light section) without touching the pin."""
         problems = []
-        if cfg.get("driver", "relay") != "relay":
-            problems.append(f"light.driver {cfg['driver']!r}: this light is switched by a relay "
-                            "(on/off only), the only driver supported")
         try:
             probe = cls.__new__(cls)
             probe.pattern = cfg.get("pattern", "steady")
@@ -140,7 +137,7 @@ class Light:
             self._off_t = time.monotonic()
 
     def start(self) -> None:
-        """Start the configured pattern; it runs until on(), off() or strobe() is called."""
+        """Start the configured pattern; it runs until on() or off() is called."""
         self.first_on_t = None
         self.flashes = 0
         if self.pattern == "steady":
@@ -203,16 +200,6 @@ class Light:
             print(f"[light] GPIO{self.pin} -> {self.off_level} (off)", flush=True)
         self._switch(False)
 
-    def strobe(self, period: float) -> None:
-        """Toggle every `period` seconds until on() or off() is called."""
-        if period < self._min_toggle - EPS:
-            raise ValueError(f"strobe period {period:g}s is under the relay's {self._min_toggle:g}s "
-                             "minimum on/off time")
-        self._stop_flashing()
-        self._hold_off()
-        print(f"[light] GPIO{self.pin} -> strobe every {period}s", flush=True)
-        self.out.blink(on_time=period, off_time=period, background=True)
-
     @property
     def is_on(self) -> bool:
         return bool(self.out.value)
@@ -237,8 +224,6 @@ if __name__ == "__main__":
     light = Light.from_config(load_config()["light"])
     try:
         light.on()
-        time.sleep(2)
-        light.strobe(0.25)
         time.sleep(2)
         light.start()
         time.sleep(3)

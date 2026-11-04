@@ -70,9 +70,9 @@ def main() -> None:
 
     detector = Detector(ROOT / d["model"], ROOT / d["labels"], d["num_threads"],
                         d["conf_threshold"], d["iou_threshold"])
-    # No second detector: the exported model must contain these four classes.
-    if detector.labels != ["raccoon", "groundhog", "squirrel", "person"]:
-        raise ValueError("Expected four-class labels: raccoon, groundhog, squirrel, person")
+    missing = set(rules["labels"]) - set(detector.labels)
+    if missing:  # a typo or the wrong model would otherwise never trigger, silently
+        raise ValueError(f"controller.labels not in {d['labels']}: {sorted(missing)}")
     thresholds = min_confidences(rules, d["conf_threshold"])  # validate before hardware
     log_path = (cfg.get("log") or {}).get("activations")
 

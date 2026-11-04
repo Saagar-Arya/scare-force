@@ -5,7 +5,7 @@ scare.deter_test (manual trigger) both start and end scares through this, so the
     d.start(trigger_t, "detection", 5.0, label="raccoon", confidence=0.91, camera=0)
     ...                                    # at trigger_t + 5.0 a timer turns the light off and
                                            # stops aplay, however busy the caller's loop is
-    d.end("timeout")                       # or "person_abort"; light off, aplay stopped, logged
+    d.end("timeout")                       # light off, aplay stopped, logged
     d.close()                              # ends a running scare as "shutdown", releases the pin
 
 end() prints one line per scare:
@@ -22,7 +22,7 @@ import threading
 import time
 from datetime import datetime
 
-END_REASONS = ("timeout", "person_abort", "shutdown")
+END_REASONS = ("timeout", "shutdown")
 
 
 class Shutdown(BaseException):
