@@ -58,6 +58,7 @@ class Deterrent:
         self._scare: dict | None = None
         self._timer: threading.Timer | None = None
         self._stop_lock = threading.Lock()  # the timer and end() may stop light and sound at once
+        self._off_wall: float | None = None  # wall time this scare's outputs stopped (CSV end)
 
     @property
     def active(self) -> bool:
@@ -72,6 +73,7 @@ class Deterrent:
             raise RuntimeError("a scare is already running")
         self._scare = {"start": time.time(), "trigger_t": trigger_t, "trigger_source": source,
                        "label": label, "confidence": confidence, "camera": camera}
+        self._off_wall = None
         if self.light:
             self.light.start()
         if self.sound:
@@ -88,6 +90,8 @@ class Deterrent:
                 if self.light:
                     self.light.off()
             finally:
+                if self._off_wall is None:
+                    self._off_wall = time.time()
                 if self.sound:
                     self.sound.stop()
 
@@ -106,7 +110,8 @@ class Deterrent:
         snd = self.sound.result() if self.sound else {}
         t0 = s["trigger_t"]
         row = {
-            "start": _iso(s["start"]), "end": _iso(time.time()), "end_reason": reason,
+            "start": _iso(s["start"]), "end": _iso(self._off_wall or time.time()),
+            "end_reason": reason,
             "trigger_source": s["trigger_source"], "label": s["label"],
             "confidence": None if s["confidence"] is None else f"{s['confidence']:.3f}",
             "camera": s["camera"],
