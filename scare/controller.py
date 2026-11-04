@@ -39,6 +39,7 @@ def main() -> None:
         from . import display
 
     cfg = load_config()
+    Light.check(cfg["light"])  # refuse bad light settings (e.g. relay toggling < 0.15 s) first
     rules = cfg["controller"]
     d = cfg["detector"]
     c = cfg["camera"]
@@ -53,7 +54,6 @@ def main() -> None:
         raise ValueError("Person detector labels must include 'person'.")
     # Validate policy settings before hardware initialization.
     PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd.get("same_object_iou", 0.5))
-    Light.check(cfg["light"])  # refuse bad light settings (e.g. relay toggling < 0.15 s) now
     log_path = (cfg.get("log") or {}).get("activations")
 
     camera = servos = None

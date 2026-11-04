@@ -16,14 +16,29 @@ deterrent off switch: with that switch OFF the lamp stays dark (the CSV still lo
 """
 
 import argparse
-import subprocess
 import time
+from pathlib import Path
 
 from . import ROOT, load_config
 from .activation_log import ActivationLog
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
 from .light import PATTERNS, Light
 from .sound import Sound
+
+
+def controller_pids() -> list[str]:
+    """Processes running `python ... -m scare.controller` (argv checked, not a text search: a
+    shell whose command line merely mentions it doesn't count)."""
+    pids = []
+    for proc in Path("/proc").glob("[0-9]*"):
+        try:
+            argv = (proc / "cmdline").read_bytes().split(b"\0")
+        except OSError:
+            continue
+        if (b"python" in Path(argv[0].decode(errors="replace")).name.encode()
+                and any(a == b"-m" and b == b"scare.controller" for a, b in zip(argv, argv[1:]))):
+            pids.append(proc.name)
+    return pids
 
 
 def main() -> None:
@@ -45,8 +60,7 @@ def main() -> None:
     light_cfg = dict(cfg["light"], **({"pattern": args.pattern} if args.pattern else {}))
     Light.check(light_cfg)
     seconds = args.seconds or cfg["controller"]["scare_seconds"]
-    running = subprocess.run(["pgrep", "-f", r"python.* -m scare\.controller"],
-                             capture_output=True, text=True).stdout.split()
+    running = controller_pids()
     if running:
         raise SystemExit(f"scare.controller is running (pid {', '.join(running)}): stop it first")
 
