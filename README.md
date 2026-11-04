@@ -3,14 +3,19 @@
 Camera → YOLO detection → controller → light, servos, sound. One Python process on the Pi 4.
 
 ```
-scare/camera.py      Camera.read() -> RGB frame, Camera.select(i) switches camera
-scare/detector.py    Detector.detect(frame) -> [Detection(label, confidence, box)]
-scare/light.py       Light.on() / off() / start() (pattern)  GPIO26 (pin 37) -> relay
-scare/servos.py      Servos.up() / down() / set(angle)      GPIO19, hardware PWM
-scare/sound.py       Sound.play(clip) / stop() / is_playing()  3.5 mm jack, clips in scare/sounds/
-scare/controller.py  main loop: which labels trigger, how long, cooldown
-scare/display.py     debug window: cameras side by side, boxes, status bar
-config.yaml          cameras, pins, servo angles, labels, timings, volume
+scare/camera.py          Camera.read() -> RGB frame, Camera.select(i) switches camera
+scare/detector.py        Detector.detect(frame) -> [Detection(label, confidence, box)]
+scare/confirmation.py    a target must show up in confirm_frames frames in a row to count
+scare/light.py           Light.start() runs light.pattern, off() / on()   GPIO26 (pin 37) -> relay
+scare/servos.py          Servos.up() / down() / set(angle)                GPIO19, hardware PWM
+scare/sound.py           Sound.next_clip() / play(clip) / stop()          3.5 mm jack
+scare/sound_library.py   which clips play, from scare/sounds/library.yaml
+scare/deterrent.py       one scare's light + sound: start, end on time, log it
+scare/activation_log.py  one CSV row per scare (log.activations)
+scare/controller.py      main loop: cameras -> detector -> scare, cooldown
+scare/deter_test.py      run scares by hand, no camera (light + sound only)
+scare/display.py         debug window: cameras side by side, boxes, status bar
+config.yaml              every setting: cameras, model, thresholds, pins, light, servos, sound, log
 ```
 
 Every output prints what it is about to do (`[light] GPIO26 -> HIGH (on)`) right before doing it.
@@ -56,15 +61,18 @@ Test each part on its own, from this folder:
 .venv/bin/python -m scare.detector    # one frame (or pass an image path), prints detections
 .venv/bin/python -m scare.light       # on 2 s, then light.pattern 3 s, off
 .venv/bin/python -m scare.servos      # up, down, release
-.venv/bin/python -m scare.servos sweep  # each servo alone 0-270-0, then both
+.venv/bin/python -m scare.servos sweep  # both servos 0-270-0, twice
 .venv/bin/python -m scare.servos mid    # centre (135), then slow sweep +/-60 around it (or pass deg)
 .venv/bin/python -m scare.sound       # plays every clip
+.venv/bin/python -m scare.deter_test  # one scare by hand (light + sound); --help for options
 ```
 
-Everything together. A raccoon, groundhog or squirrel (models/scare_four_320.onnx, confirmed over
-`controller.confirm_frames` frames) plays the next clip, flaps the servos and runs the light pattern. The window shows every camera side by side
-(the ones not streaming right now dimmed, with the age of their last frame), draws every box
-(red = trigger) and a status bar: sound, light, servo angle, scare/cooldown state, fps.
+Everything together. A raccoon, groundhog or squirrel (`models/scare_four_320.onnx`, above
+`controller.min_confidence` for `controller.confirm_frames` frames in a row) starts a scare: the
+next clip, the servos flapping and the light pattern, for `scare_seconds`, then `cooldown_seconds`
+of quiet. The window shows every camera side by side (the ones not streaming right now dimmed, with
+the age of their last frame), draws every box (red = trigger) and a status bar: sound, light, servo
+angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`.
 
 ```bash
 .venv/bin/python -m scare.controller             # debug window; q / Esc / Ctrl+C stops

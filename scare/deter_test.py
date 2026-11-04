@@ -64,13 +64,13 @@ def main() -> None:
     if running:
         raise SystemExit(f"scare.controller is running (pid {', '.join(running)}): stop it first")
 
-    log_path = (cfg.get("log") or {}).get("activations")
+    log_path = cfg["log"]["activations"]
     deterrent = Deterrent()
     try:
         if log_path:
             deterrent.log = ActivationLog(ROOT / log_path)
         if not args.no_light:
-            deterrent.light = Light.from_config(light_cfg)
+            deterrent.light = Light(light_cfg)
         if not args.no_sound:
             deterrent.sound = Sound(cfg["sound"], ROOT)
         what = " + ".join(x for x, on in (

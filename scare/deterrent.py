@@ -60,10 +60,6 @@ class Deterrent:
         self._stop_lock = threading.Lock()  # the timer and end() may stop light and sound at once
         self._off_wall: float | None = None  # wall time this scare's outputs stopped (CSV end)
 
-    @property
-    def active(self) -> bool:
-        return self._scare is not None
-
     def start(self, trigger_t: float, source: str, seconds: float, *, label: str = "",
               confidence=None, camera="") -> None:
         """Start a scare: the light pattern, then the next clip. trigger_t: time.monotonic() at

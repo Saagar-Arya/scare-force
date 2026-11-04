@@ -39,22 +39,49 @@ EPS = 1e-9  # so a setting exactly at a limit isn't rejected by float rounding
 LATE_TOLERANCE_S = 0.02
 
 
+def _problems(pattern, rate_hz, duty, jitter, max_rate_hz, relay_min_toggle_s) -> list[str]:
+    """Everything wrong with a set of light settings ([] if they're fine)."""
+    rate_hz, duty, jitter = float(rate_hz), float(duty), float(jitter)
+    max_rate_hz, min_toggle = float(max_rate_hz), float(relay_min_toggle_s)
+    p = []
+    if min_toggle < RELAY_MIN_TOGGLE_S - EPS:
+        p.append(f"light.relay_min_toggle_s {min_toggle:g}s is under the relay's "
+                 f"{RELAY_MIN_TOGGLE_S:g}s floor")
+    if pattern not in PATTERNS:
+        p.append(f"light.pattern must be {', '.join(PATTERNS)}, got {pattern!r}")
+    if not 0 < duty < 1:
+        p.append(f"light.duty must be between 0 and 1 (exclusive), got {duty:g}")
+    if rate_hz <= 0:
+        p.append(f"light.rate_hz must be > 0, got {rate_hz:g}")
+    if not 0 <= jitter <= 0.5:
+        p.append(f"light.jitter must be between 0 and 0.5, got {jitter:g}")
+    if p or pattern == "steady":
+        return p
+    jitter = jitter if pattern == "random" else 0.0
+    fastest = rate_hz / (1 - jitter)
+    if fastest > max_rate_hz + EPS:
+        p.append(f"fastest flash {fastest:.2f} Hz is above max_rate_hz {max_rate_hz:g}, "
+                 "the photosensitive-seizure safety ceiling")
+    shortest = min(duty, 1 - duty) / rate_hz * (1 - jitter)
+    if shortest < min_toggle - EPS:
+        p.append(f"the relay's shortest on/off time would be {shortest:.3f}s, under the "
+                 f"{min_toggle:g}s minimum")
+    return p
+
+
 class Light:
-    def __init__(self, pin: int, active_high: bool = True, *, pattern: str = "steady",
-                 rate_hz: float = 2.0, duty: float = 0.5, jitter: float = 0.3,
-                 max_rate_hz: float = 3.0, relay_min_toggle_s: float = RELAY_MIN_TOGGLE_S):
-        self.pattern = pattern
-        self.rate_hz, self.duty, self.jitter = float(rate_hz), float(duty), float(jitter)
-        self.max_rate_hz = float(max_rate_hz)
-        self.min_toggle_s = float(relay_min_toggle_s)
-        problems = self._problems()
-        if problems:
-            raise ValueError("light settings refused: " + "; ".join(problems))
+    def __init__(self, cfg: dict):
+        """cfg: config.yaml's light section. Refuses bad settings before touching the pin."""
+        self.check(cfg)
+        self.pattern = cfg["pattern"]
+        self.rate_hz, self.duty = float(cfg["rate_hz"]), float(cfg["duty"])
+        self.jitter = float(cfg["jitter"])
+        self.min_toggle_s = float(cfg["relay_min_toggle_s"])
         from gpiozero import DigitalOutputDevice
 
-        self.pin, self.active_high = pin, active_high
-        self.on_level, self.off_level = ("HIGH", "LOW") if active_high else ("LOW", "HIGH")
-        self.out = DigitalOutputDevice(pin, active_high=active_high, initial_value=False)
+        self.pin, self.active_high = cfg["pin"], cfg["active_high"]
+        self.on_level, self.off_level = ("HIGH", "LOW") if self.active_high else ("LOW", "HIGH")
+        self.out = DigitalOutputDevice(self.pin, active_high=self.active_high, initial_value=False)
         self._lock = threading.Lock()  # a flash can't turn the light back on after a stop
         self._stop: threading.Event | None = None
         self._thread: threading.Thread | None = None
@@ -62,64 +89,22 @@ class Light:
         self.flashes = 0
         self.first_on_t: float | None = None  # monotonic time start()'s pattern first lit the lamp
 
-    @classmethod
-    def from_config(cls, cfg: dict) -> "Light":
-        cls.check(cfg)
-        return cls(cfg["pin"], cfg.get("active_high", True),
-                   **{k: cfg[k] for k in OPTIONS if k in cfg})
-
-    @classmethod
-    def check(cls, cfg: dict) -> None:
-        """Validate light settings (config.yaml's light section) without touching the pin."""
-        problems = []
+    @staticmethod
+    def check(cfg: dict) -> None:
+        """Validate config.yaml's light section without touching the pin (ValueError listing
+        every problem)."""
         try:
-            probe = cls.__new__(cls)
-            probe.pattern = cfg.get("pattern", "steady")
-            probe.rate_hz = float(cfg.get("rate_hz", 2.0))
-            probe.duty = float(cfg.get("duty", 0.5))
-            probe.jitter = float(cfg.get("jitter", 0.3))
-            probe.max_rate_hz = float(cfg.get("max_rate_hz", 3.0))
-            probe.min_toggle_s = float(cfg.get("relay_min_toggle_s", RELAY_MIN_TOGGLE_S))
-            problems += probe._problems()
+            problems = _problems(**{k: cfg[k] for k in OPTIONS})
+        except KeyError as e:
+            problems = [f"light.{e.args[0]} is missing from config.yaml"]
         except (TypeError, ValueError) as e:
-            problems.append(f"light: bad number ({e})")
+            problems = [f"light: bad number ({e})"]
         if problems:
             raise ValueError("light settings refused: " + "; ".join(problems))
 
-    def _problems(self) -> list[str]:
-        p = []
-        if self.min_toggle_s < RELAY_MIN_TOGGLE_S - EPS:
-            p.append(f"light.relay_min_toggle_s {self.min_toggle_s:g}s is under the relay's "
-                     f"{RELAY_MIN_TOGGLE_S:g}s floor")
-        min_toggle = max(self.min_toggle_s, RELAY_MIN_TOGGLE_S)
-        if self.pattern not in PATTERNS:
-            p.append(f"light.pattern must be {', '.join(PATTERNS)}, got {self.pattern!r}")
-        if not 0 < self.duty < 1:
-            p.append(f"light.duty must be between 0 and 1 (exclusive), got {self.duty:g}")
-        if self.rate_hz <= 0:
-            p.append(f"light.rate_hz must be > 0, got {self.rate_hz:g}")
-        if not 0 <= self.jitter <= 0.5:
-            p.append(f"light.jitter must be between 0 and 0.5, got {self.jitter:g}")
-        if p or self.pattern == "steady":
-            return p
-        jitter = self.jitter if self.pattern == "random" else 0.0
-        fastest = self.rate_hz / (1 - jitter)
-        if fastest > self.max_rate_hz + EPS:
-            p.append(f"fastest flash {fastest:.2f} Hz is above max_rate_hz {self.max_rate_hz:g}, "
-                     "the photosensitive-seizure safety ceiling")
-        shortest = min(self.duty, 1 - self.duty) / self.rate_hz * (1 - jitter)
-        if shortest < min_toggle - EPS:
-            p.append(f"the relay's shortest on/off time would be {shortest:.3f}s, under the "
-                     f"{min_toggle:g}s minimum")
-        return p
-
-    @property
-    def _min_toggle(self) -> float:
-        return max(self.min_toggle_s, RELAY_MIN_TOGGLE_S)
-
     def _hold_off(self, stop: threading.Event | None = None) -> bool:
         """Wait until the light has been off for the relay minimum. False if stopped meanwhile."""
-        wait = self._off_t + self._min_toggle - time.monotonic()
+        wait = self._off_t + self.min_toggle_s - time.monotonic()
         if wait <= 0:
             return True
         if stop is None:
@@ -221,7 +206,7 @@ class Light:
 if __name__ == "__main__":
     from . import load_config
 
-    light = Light.from_config(load_config()["light"])
+    light = Light(load_config()["light"])
     try:
         light.on()
         time.sleep(2)

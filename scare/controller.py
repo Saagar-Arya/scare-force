@@ -68,23 +68,21 @@ def main() -> None:
     d = cfg["detector"]
     c = cfg["camera"]
 
-    detector = Detector(ROOT / d["model"], ROOT / d["labels"], d["num_threads"],
-                        d["conf_threshold"], d["iou_threshold"])
+    detector = Detector(d, ROOT)
     missing = set(rules["labels"]) - set(detector.labels)
     if missing:  # a typo or the wrong model would otherwise never trigger, silently
         raise ValueError(f"controller.labels not in {d['labels']}: {sorted(missing)}")
     thresholds = min_confidences(rules, d["conf_threshold"])  # validate before hardware
-    log_path = (cfg.get("log") or {}).get("activations")
+    log_path = cfg["log"]["activations"]
 
     camera = servos = None
     deterrent = Deterrent()
     try:
-        activations = ActivationLog(ROOT / log_path) if log_path else None  # null: terminal only
-        deterrent.log = activations
-        camera = Camera(c["width"], c["height"], c["ids"], c.get("exposure_value", 0.0))
+        deterrent.log = ActivationLog(ROOT / log_path) if log_path else None  # null: terminal only
+        camera = Camera(c)
         confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                       rules["confirmation_gap_seconds"]) for _ in camera.ids]
-        deterrent.light = Light.from_config(cfg["light"])
+        deterrent.light = Light(cfg["light"])
         sound = deterrent.sound = Sound(cfg["sound"], ROOT)
         sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
         servos = Servos(cfg["servos"])

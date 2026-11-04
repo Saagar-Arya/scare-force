@@ -113,8 +113,6 @@ class Sound:
 
 
 if __name__ == "__main__":
-    import time
-
     from . import ROOT, load_config
 
     sound = Sound(load_config()["sound"], ROOT)

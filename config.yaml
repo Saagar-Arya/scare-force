@@ -19,7 +19,6 @@ detector:
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
 
-
 light:
   # The lamp is switched by a 1-channel relay: on or off only, no dimming. The relay board is
   # powered through the deterrent off switch, so with that switch OFF nothing lights.
@@ -56,7 +55,7 @@ sound:
   device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)
   mixer_card: Headphones
   mixer_control: PCM
-  level: 80                 # percent, set before every play
+  level: 80                 # percent, set once at startup
   library: scare/sounds/library.yaml   # its generic set, one clip per scare in order
                             # (alternates sound types), from a random start each run, wrapping
 
@@ -66,7 +65,7 @@ controller:
     default: 0.5            # at 0.35 people in view set off scares (raccoon 0.38, squirrel 0.46)
     # groundhog: 0.45       # the model often under-scores groundhogs; lower only after field checks
   confirm_frames: 3         # frames in a row (~0.6 s at ~5 fps) before a scare; 1 = single frame
-  confirm_iou: 0.3
+  confirm_iou: 0.3          # how much a box must overlap the last frame's to count as the same target
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long the scare lasts
   flap_seconds: 0.5         # time between servo up and down while scaring
@@ -77,5 +76,5 @@ controller:
 
 log:
   # One CSV row per scare, written when it ends (columns: see scare/activation_log.py).
-  # Relative to the repo folder. null = no file, terminal output only (the original).
+  # Relative to the repo folder. null = no file, terminal output only.
   activations: logs/activations.csv

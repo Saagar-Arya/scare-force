@@ -35,18 +35,19 @@ def letterbox(frame: np.ndarray, size: tuple[int, int]) -> tuple[np.ndarray, flo
 
 
 class Detector:
-    def __init__(self, model: Path, labels: Path, num_threads: int = 4,
-                 conf_threshold: float = 0.25, iou_threshold: float = 0.45):
+    def __init__(self, cfg: dict, root: Path):
+        """cfg: config.yaml's detector section; model and labels are relative to root."""
         import onnxruntime as ort
 
         opts = ort.SessionOptions()
-        opts.intra_op_num_threads = num_threads
-        self.session = ort.InferenceSession(str(model), opts, providers=["CPUExecutionProvider"])
+        opts.intra_op_num_threads = cfg["num_threads"]
+        self.session = ort.InferenceSession(str(root / cfg["model"]), opts,
+                                            providers=["CPUExecutionProvider"])
         inp = self.session.get_inputs()[0]
         self.input_name = inp.name
         self.input_size = (inp.shape[3], inp.shape[2])  # exported with a fixed (w, h)
-        self.labels = Path(labels).read_text().splitlines()
-        self.conf, self.iou = conf_threshold, iou_threshold
+        self.labels = (root / cfg["labels"]).read_text().splitlines()
+        self.conf, self.iou = cfg["conf_threshold"], cfg["iou_threshold"]
 
     def detect(self, frame: np.ndarray) -> list[Detection]:
         img, scale, (pad_x, pad_y) = letterbox(frame, self.input_size)
@@ -82,15 +83,13 @@ if __name__ == "__main__":
     from . import ROOT, load_config
 
     cfg = load_config()
-    d = cfg["detector"]
-    det = Detector(ROOT / d["model"], ROOT / d["labels"], d["num_threads"],
-                   d["conf_threshold"], d["iou_threshold"])
+    det = Detector(cfg["detector"], ROOT)
     if len(sys.argv) > 1:
         frame = cv2.imread(sys.argv[1])[..., ::-1]
     else:
         from .camera import Camera
 
-        cam = Camera(cfg["camera"]["width"], cfg["camera"]["height"])
+        cam = Camera(cfg["camera"])  # the first camera in camera.ids
         frame = cam.read()
         cam.close()
     t = time.perf_counter()
