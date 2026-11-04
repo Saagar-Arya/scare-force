@@ -26,6 +26,30 @@ from .servos import Servos
 from .sound import Sound
 
 
+def min_confidences(rules, detector_conf: float) -> dict:
+    """controller.min_confidence as {label: threshold} for every trigger label.
+
+    Either one number for all labels, or a mapping with a `default` and per-label overrides.
+    """
+    raw = rules["min_confidence"]
+    if isinstance(raw, dict):
+        unknown = set(raw) - set(rules["labels"]) - {"default"}
+        if unknown:
+            raise ValueError(f"min_confidence: not in controller.labels: {sorted(unknown)}")
+        if "default" not in raw and set(rules["labels"]) - set(raw):
+            raise ValueError("min_confidence: needs a default for labels it doesn't list")
+        out = {label: raw.get(label, raw.get("default")) for label in rules["labels"]}
+    else:
+        out = {label: raw for label in rules["labels"]}
+    for label, t in out.items():
+        if not isinstance(t, (int, float)) or not 0 < t <= 1:
+            raise ValueError(f"min_confidence for {label} must be in (0, 1], got {t!r}")
+        if t < detector_conf:
+            print(f"[controller] note: {label} min_confidence {t} is below detector.conf_threshold "
+                  f"{detector_conf}, so it acts as {detector_conf}", flush=True)
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Scare Force main loop")
     ap.add_argument("--headless", action="store_true", help="no debug window")
@@ -47,7 +71,8 @@ def main() -> None:
     guard = PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd["same_object_iou"])
     confirmer = TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                 rules["confirmation_gap_seconds"])
-    camera = Camera(c["width"], c["height"], c["ids"])
+    thresholds = min_confidences(rules, d["conf_threshold"])  # validate before hardware
+    camera = Camera(c["width"], c["height"], c["ids"], c.get("exposure_value", 0.0))
     guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
                           pd["same_object_iou"]) for _ in camera.ids]
     confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
@@ -69,8 +94,9 @@ def main() -> None:
     next_switch = last_frame_t + c["dwell_seconds"]
     switch_ms = 0.0
     feeds = [None] * len(camera.ids)  # per camera, its last (frame, detections, hits, time)
-    print(f"[controller] watching cameras {camera.ids} for {rules['labels']} "
-          f"(conf >= {rules['min_confidence']})", flush=True)
+    print(f"[controller] watching cameras {camera.ids}, min confidence "
+          + ", ".join(f"{k} {v}" for k, v in thresholds.items())
+          + f", {rules['confirm_frames']} frame(s) to confirm", flush=True)
 
     try:
         servos.down()
@@ -91,7 +117,7 @@ def main() -> None:
             guard.update(people, now)
             hits = [
                 det for det in animal_detections
-                if det.label in rules["labels"] and det.confidence >= rules["min_confidence"]
+                if det.label in thresholds and det.confidence >= thresholds[det.label]
             ]
             rejected = [det for det in hits if guard.blocks(det)]
             hits = [det for det in hits if not guard.blocks(det)]

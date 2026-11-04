@@ -9,6 +9,8 @@ camera:
   # The Pi 4 has one CSI port, so only one streams at a time; cameras not found are skipped.
   ids: [0, 1]
   dwell_seconds: 2.0        # watch each camera this long, then switch (a switch takes ~0.5 s)
+  exposure_value: 1.5       # auto-exposure brightness, in stops (-8..8; 0 = libcamera default,
+                            # +1 = twice as bright). Raise if the image is dark, lower if washed out.
 
 detector:
   model: models/scare_four_320.onnx
@@ -50,8 +52,12 @@ sound:
 
 controller:
   labels: [raccoon, groundhog, squirrel]  # only these labels trigger
-  min_confidence: 0.65      # starting threshold; check validation false triggers and recall
-  confirm_frames: 3         # repeated detections reduce one-frame false alarms
+  min_confidence:           # per label; labels not listed use default. A plain number sets all.
+    default: 0.5            # starting threshold; check validation false triggers and recall
+    raccoon: 0.35           # lower (bench test)
+    groundhog: 0.35         # lower: the model often under-scores groundhogs (bench test)
+    squirrel: 0.35          # lower as well (bench test)
+  confirm_frames: 1         # 1 = fire on a single frame (bench test); 2-3 cuts one-frame false alarms
   confirm_iou: 0.3
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long the scare lasts
