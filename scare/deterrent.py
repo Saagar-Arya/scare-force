@@ -2,8 +2,9 @@
 scare.deter_test (manual trigger) both start and end scares through this, so they run the same code.
 
     d = Deterrent(light, sound, log)       # any of them may be None (no light / no sound / no CSV)
-    d.start(trigger_t, "detection", label="raccoon", confidence=0.91, camera=0)
-    ...
+    d.start(trigger_t, "detection", 5.0, label="raccoon", confidence=0.91, camera=0)
+    ...                                    # at trigger_t + 5.0 a timer turns the light off and
+                                           # stops aplay, however busy the caller's loop is
     d.end("timeout")                       # or "person_abort"; light off, aplay stopped, logged
     d.close()                              # ends a running scare as "shutdown", releases the pin
 
@@ -17,6 +18,7 @@ ignore_signals() keeps a second signal from interrupting that cleanup.
 """
 
 import signal
+import threading
 import time
 from datetime import datetime
 
@@ -54,15 +56,18 @@ class Deterrent:
     def __init__(self, light=None, sound=None, log=None):
         self.light, self.sound, self.log = light, sound, log
         self._scare: dict | None = None
+        self._timer: threading.Timer | None = None
+        self._stop_lock = threading.Lock()  # the timer and end() may stop light and sound at once
 
     @property
     def active(self) -> bool:
         return self._scare is not None
 
-    def start(self, trigger_t: float, source: str, *, label: str = "", confidence=None,
-              camera="") -> None:
+    def start(self, trigger_t: float, source: str, seconds: float, *, label: str = "",
+              confidence=None, camera="") -> None:
         """Start a scare: the light pattern, then the next clip. trigger_t: time.monotonic() at
-        the moment the scare was decided (latencies are measured from it)."""
+        the moment the scare was decided (latencies are measured from it). At trigger_t + seconds
+        a timer stops the light and sound; end() must still be called to log the scare."""
         if self._scare is not None:
             raise RuntimeError("a scare is already running")
         self._scare = {"start": time.time(), "trigger_t": trigger_t, "trigger_source": source,
@@ -71,6 +76,20 @@ class Deterrent:
             self.light.start()
         if self.sound:
             self.sound.play(self.sound.next_clip())
+        self._timer = threading.Timer(max(0.0, trigger_t + seconds - time.monotonic()),
+                                      self._stop_outputs)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def _stop_outputs(self) -> None:
+        """Light off first, then aplay. Called by the timer, end() and close()."""
+        with self._stop_lock:
+            try:
+                if self.light:
+                    self.light.off()
+            finally:
+                if self.sound:
+                    self.sound.stop()
 
     def end(self, reason: str) -> None:
         """Stop the scare (light off first, then aplay), print its line, write its CSV row."""
@@ -80,12 +99,10 @@ class Deterrent:
         if s is None:
             return
         self._scare = None
-        try:
-            if self.light:
-                self.light.off()
-        finally:
-            if self.sound:
-                self.sound.stop()
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
+        self._stop_outputs()  # nothing left to do if the timer already ran
         snd = self.sound.result() if self.sound else {}
         t0 = s["trigger_t"]
         row = {
@@ -124,8 +141,7 @@ class Deterrent:
             self.end("shutdown")
         finally:
             try:
-                if self.sound:
-                    self.sound.stop()  # also a clip started by a start() that was interrupted
+                self._stop_outputs()  # also a scare whose start() was interrupted
             finally:
                 try:
                     if self.light:

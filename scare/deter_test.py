@@ -82,7 +82,7 @@ def main() -> None:
                 time.sleep(args.gap)
             print(f"[deter_test] scare {i + 1}/{args.scares}", flush=True)
             trigger_t = time.monotonic()
-            deterrent.start(trigger_t, "manual")
+            deterrent.start(trigger_t, "manual", seconds)
             time.sleep(max(0.0, trigger_t + seconds - time.monotonic()))
             deterrent.end("timeout")
     except (KeyboardInterrupt, Shutdown) as e:

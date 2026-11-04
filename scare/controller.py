@@ -152,8 +152,8 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
             quiet_until = scare_until + rules["cooldown_seconds"]
             next_flap = now
             # light.pattern (steady, strobe or random), then sound.source's next clip
-            deterrent.start(now, "detection", label=best.label, confidence=best.confidence,
-                            camera=camera.ids[camera.current])
+            deterrent.start(now, "detection", rules["scare_seconds"], label=best.label,
+                            confidence=best.confidence, camera=camera.ids[camera.current])
             note = None
         elif hits:
             note = (f"{hits[0].label} {hits[0].confidence:.2f} ignored: " +

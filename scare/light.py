@@ -197,8 +197,10 @@ class Light:
         self._switch(True)
 
     def off(self) -> None:
+        was_on = self._thread is not None or self.is_on
         self._stop_flashing()
-        print(f"[light] GPIO{self.pin} -> {self.off_level} (off)", flush=True)
+        if was_on:
+            print(f"[light] GPIO{self.pin} -> {self.off_level} (off)", flush=True)
         self._switch(False)
 
     def strobe(self, period: float) -> None:
