@@ -103,6 +103,7 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
     fps = 0.0
     next_switch = last_frame_t + c["dwell_seconds"]
     switch_ms = 0.0
+    next_note = 0.0       # the "seen but ignored" notes print at most once a second
     feeds = [None] * len(camera.ids)  # per camera, its last (frame, detections, hits, time)
     print(f"[controller] watching cameras {camera.ids} for {rules['labels']} "
           f"(conf >= {rules['min_confidence']})", flush=True)
@@ -153,6 +154,19 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
             # light.pattern (steady, strobe or random), then sound.source's next clip
             deterrent.start(now, "detection", label=best.label, confidence=best.confidence,
                             camera=camera.ids[camera.current])
+            note = None
+        elif hits:
+            note = (f"{hits[0].label} {hits[0].confidence:.2f} ignored: " +
+                    ("scare running" if scare_until else f"cooldown, {quiet_until - now:.1f}s left"))
+        elif rejected:
+            note = f"{rejected[0].label} {rejected[0].confidence:.2f} blocked: matches a person box"
+        elif people:
+            note = f"{len(people)} person(s), no target"
+        else:
+            note = None
+        if note and now >= next_note:
+            print(f"[controller] camera {camera.ids[camera.current]}: {note}", flush=True)
+            next_note = now + 1.0
 
         if scare_until and now < scare_until:
             if now >= next_flap:
