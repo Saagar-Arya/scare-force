@@ -86,7 +86,7 @@ class Sound:
 
     def _reap(self, proc: subprocess.Popen) -> None:
         proc.wait()
-        if proc is self.proc:
+        if proc is self.proc and self._ended_t is None:
             self._ended_t = time.monotonic()
 
     def clip_type(self, clip: Path) -> str:
@@ -95,11 +95,12 @@ class Sound:
     def result(self) -> dict:
         """The last clip played: id, type, aplay rc (None while playing), seconds played, stopped."""
         if self.proc is None:
-            return {"clip_id": "", "sound_type": "", "rc": None, "seconds": None, "stopped": False}
+            return {"clip_id": "", "sound_type": "", "rc": None, "seconds": None, "stopped": False,
+                    "started_t": None}
         rc = self.proc.poll()
         end = self._ended_t if rc is not None and self._ended_t else time.monotonic()
         return {"clip_id": self.current.stem, "sound_type": self.clip_type(self.current), "rc": rc,
-                "seconds": end - self.started_t, "stopped": self._stopped}
+                "seconds": end - self.started_t, "stopped": self._stopped, "started_t": self.started_t}
 
     def prime(self) -> None:
         """Play 0.1 s of silence. The first sound after boot switches the Pi 4's PWM clock (shared
@@ -116,6 +117,9 @@ class Sound:
         if self.is_playing():
             print("[sound] stop", flush=True)
             self._stopped = True
+            # the clip ends here: the PCM stops within ~30 ms of SIGTERM; aplay itself takes
+            # ~100 ms more to exit, which isn't sound
+            self._ended_t = time.monotonic()
             self.proc.terminate()
         if self.proc is not None:
             try:
