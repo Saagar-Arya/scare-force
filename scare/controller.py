@@ -121,7 +121,7 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
     switch_ms = 0.0
     next_note = 0.0       # the "seen but ignored" notes print at most once a second
     feeds = [None] * len(camera.ids)  # per camera, its last (frame, detections, hits, time)
-    print(f"[controller] watching cameras {camera.ids}, min confidence "
+    print(f"[controller] watching {', '.join(camera.names)}, min confidence "
           + ", ".join(f"{k} {v}" for k, v in thresholds.items())
           + f", {rules['confirm_frames']} frame(s) to confirm", flush=True)
 
@@ -148,7 +148,7 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
 
         if hits and now >= quiet_until:
             best = hits[0]
-            print(f"[controller] SCARE: camera {camera.ids[camera.current]} {best.label} "
+            print(f"[controller] SCARE: {camera.names[camera.current]} {best.label} "
                   f"{best.confidence:.2f} at {best.box}", flush=True)
             scare_until = now + rules["scare_seconds"]
             quiet_until = scare_until + rules["cooldown_seconds"]
@@ -165,7 +165,7 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         else:
             note = None
         if note and now >= next_note:
-            print(f"[controller] camera {camera.ids[camera.current]}: {note}", flush=True)
+            print(f"[controller] {camera.names[camera.current]}: {note}", flush=True)
             next_note = now + 1.0
 
         if scare_until and now < scare_until:
@@ -201,11 +201,11 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
             for i, feed in enumerate(feeds):
                 live = i == camera.current
                 if feed is None:
-                    views.append((f"camera {camera.ids[i]}: waiting", None, [], [], False))
+                    views.append((f"{camera.names[i]}: waiting", None, [], [], False))
                     continue
                 f_frame, f_dets, f_hits, f_t = feed
                 age = "live" if live else f"{now - f_t:.1f}s ago"
-                views.append((f"camera {camera.ids[i]}: {age}", f_frame, f_dets, f_hits, live))
+                views.append((f"{camera.names[i]}: {age}", f_frame, f_dets, f_hits, live))
             line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"
             if len(camera.ids) > 1:
                 line2 += f"   switch {switch_ms:.0f} ms every {c['dwell_seconds']}s"

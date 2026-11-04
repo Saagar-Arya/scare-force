@@ -27,17 +27,17 @@ python3 -m venv --system-site-packages .venv   # picamera2 + gpiozero come from 
 .venv/bin/pip install onnxruntime
 ```
 
-Two Camera Module 3s on an Arducam Multi Camera Adapter V2.2 (ports A and C), and both servos on
-one hardware PWM channel on GPIO19. The adapter sits on the GPIO header and uses GPIO4, 17 and 18
-(physical pins 7, 11, 12) to switch cameras: without it seated there both cameras are detected but
-every frame comes back black. In /boot/firmware/config.txt, with `camera_auto_detect=0`:
+Two Camera Module 3s (ports A and C) and an IMX219-160 IR-CUT (port B) on an Arducam Multi Camera
+Adapter V2.2, and both servos on one hardware PWM channel on GPIO19. The adapter sits on the GPIO
+header and uses GPIO4, 17 and 18 (physical pins 7, 11, 12) to switch cameras: without it seated
+there the cameras are detected but every frame comes back black. In /boot/firmware/config.txt, with `camera_auto_detect=0`:
 
 ```
-dtoverlay=camera-mux-4port,cam0-imx708,cam2-imx708     # cam0..cam3 = ports A..D
+dtoverlay=camera-mux-4port,cam0-imx708,cam1-imx219,cam2-imx708     # cam0..cam3 = ports A..D
 dtoverlay=pwm,pin=19,func=2
 ```
 
-then reboot. `rpicam-hello --list-cameras` should list two imx708s. The Pi 4 has one CSI port, so
+then reboot. `rpicam-hello --list-cameras` should list two imx708s and an imx219. The Pi 4 has one CSI port, so
 only one camera streams at a time: the controller watches each for `camera.dwell_seconds` and
 switches (about 0.5 s). With a single camera straight on the CSI port, use `dtoverlay=imx708`
 instead; missing cameras in `camera.ids` are skipped.

@@ -14,6 +14,7 @@ WINDOW = "Scare Force"
 HEAD_H = 26
 BAR_H = 56
 GAP = 4
+MAX_W = 1900   # the monitor is 1920 wide; three 640-wide feeds (1928) get scaled down to fit
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 GREEN, RED, WHITE, GRAY, YELLOW = (0, 200, 0), (0, 0, 255), (255, 255, 255), (150, 150, 150), (0, 220, 255)
 
@@ -64,7 +65,11 @@ def show(feeds: list[tuple[str, np.ndarray | None, list[Detection], list[Detecti
         x += cv2.getTextSize(text, FONT, 0.55, 1)[0][0] + 20
     cv2.putText(bar, line2, (8, 46), FONT, 0.5, WHITE, 1, cv2.LINE_AA)
 
-    cv2.imshow(WINDOW, np.vstack([img, bar]))
+    out = np.vstack([img, bar])
+    if out.shape[1] > MAX_W:
+        out = cv2.resize(out, (MAX_W, round(out.shape[0] * MAX_W / out.shape[1])),
+                         interpolation=cv2.INTER_AREA)
+    cv2.imshow(WINDOW, out)
     return cv2.waitKey(1) & 0xFF not in (ord("q"), 27)
 
 
