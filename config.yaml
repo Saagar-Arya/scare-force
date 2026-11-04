@@ -19,11 +19,6 @@ detector:
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
 
-# Uses person predictions from the SAME four-class model (no second ONNX session).
-person_filter:
-  conf_threshold: 0.35
-  hold_seconds: 0.5
-  same_object_iou: 0.5
 
 light:
   pin: 26                   # GPIO26 = physical pin 37, drives the light's relay

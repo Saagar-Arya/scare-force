@@ -5,8 +5,8 @@ camera.dwell_seconds, then switches to the next. A matching detection on any of 
 a random clip (never the same one twice in a row), servos flapping up/down and the light on. After
 scare_seconds everything stops, then nothing fires again until cooldown_seconds have passed.
 Detection and switching keep running the whole time. A single four-class model handles each frame.
-Animal boxes matching person boxes are rejected; smaller held animals remain eligible.
-Person regions and active trigger positions are scoped to their source camera.
+Only animal labels can trigger; person predictions never veto an animal.
+Confirmation histories are scoped to each camera.
 
 Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C stops)
      python -m scare.controller --headless   (no window)
@@ -19,7 +19,6 @@ import time
 from . import ROOT, load_config
 from .camera import Camera
 from .detector import Detector
-from .person_guard import PersonGuard
 from .confirmation import TargetConfirmer
 from .light import Light
 from .servos import Servos
@@ -67,14 +66,15 @@ def main() -> None:
     # No second detector: the exported model must contain these four classes.
     if detector.labels != ["raccoon", "groundhog", "squirrel", "person"]:
         raise ValueError("Expected four-class labels: raccoon, groundhog, squirrel, person")
-    pd = cfg["person_filter"]
-    guard = PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd["same_object_iou"])
     confirmer = TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                 rules["confirmation_gap_seconds"])
     thresholds = min_confidences(rules, d["conf_threshold"])  # validate before hardware
     camera = Camera(c["width"], c["height"], c["ids"], c.get("exposure_value", 0.0))
+<<<<<<< HEAD
     guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
                           pd["same_object_iou"]) for _ in camera.ids]
+=======
+>>>>>>> 51581a3 (Update model with Pi camera training photos and remove person veto)
     confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                   rules["confirmation_gap_seconds"]) for _ in camera.ids]
     light = Light(cfg["light"]["pin"], cfg["light"]["active_high"])
@@ -86,8 +86,6 @@ def main() -> None:
     quiet_until = 0.0     # no new scare before this
     next_flap = 0.0
     servo_up = False
-    active_target = None
-    active_camera = None
     last_clip = None
     last_frame_t = time.monotonic()
     fps = 0.0
@@ -110,35 +108,17 @@ def main() -> None:
                 switch_ms = (time.monotonic() - switch_t) * 1000
                 next_switch = time.monotonic() + c["dwell_seconds"]
             detections = detector.detect(frame)
-            people = [det for det in detections if det.label == "person"]
             animal_detections = [det for det in detections if det.label in rules["labels"]]
             now = time.monotonic()
-            guard = guards[camera.current]
-            guard.update(people, now)
             hits = [
                 det for det in animal_detections
                 if det.label in thresholds and det.confidence >= thresholds[det.label]
             ]
-            rejected = [det for det in hits if guard.blocks(det)]
-            hits = [det for det in hits if not guard.blocks(det)]
             hits = confirmers[camera.current].update(hits, now)
-            if (scare_until and active_camera == camera.current and
-                    active_target is not None and guard.blocks(active_target)):
-                print("[controller] person matches active target box: stopping scare", flush=True)
-                scare_until = 0.0
-                active_target = None
-                active_camera = None
-                light.off()
-                sound.stop()
-                servos.ramp(servos.down_angle, rules["return_deg_per_s"])
-                servo_up = False
-                quiet_until = max(quiet_until, time.monotonic() + rules["cooldown_seconds"])
             feeds[camera.current] = (frame, detections, hits, now)
 
             if hits and now >= quiet_until:
                 best = hits[0]
-                active_target = best
-                active_camera = camera.current
                 print(f"[controller] SCARE: camera {camera.ids[camera.current]} {best.label} "
                       f"{best.confidence:.2f} at {best.box}", flush=True)
                 scare_until = now + rules["scare_seconds"]
@@ -157,8 +137,6 @@ def main() -> None:
             elif scare_until:
                 print("[controller] scare over", flush=True)
                 scare_until = 0.0
-                active_target = None
-                active_camera = None
                 light.off()
                 sound.stop()
                 servos.ramp(servos.down_angle, rules["return_deg_per_s"])
@@ -172,8 +150,6 @@ def main() -> None:
                     state = f"SCARING {scare_until - now:.1f}s"
                 elif now < quiet_until:
                     state = f"cooldown {quiet_until - now:.1f}s"
-                elif rejected:
-                    state = "PERSON MATCH"
                 else:
                     state = "watching"
                 status = [
@@ -192,7 +168,7 @@ def main() -> None:
                     f_frame, f_dets, f_hits, f_t = feed
                     age = "live" if live else f"{now - f_t:.1f}s ago"
                     views.append((f"camera {camera.ids[i]}: {age}", f_frame, f_dets, f_hits, live))
-                line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(rejected)} person-match blocks"
+                line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"
                 if len(camera.ids) > 1:
                     line2 += f"   switch {switch_ms:.0f} ms every {c['dwell_seconds']}s"
                 if not display.show(views, status, line2):
