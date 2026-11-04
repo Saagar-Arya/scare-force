@@ -1,0 +1,4 @@
+raccoon
+groundhog
+squirrel
+person

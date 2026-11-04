@@ -5,9 +5,9 @@ camera.dwell_seconds, then switches to the next. A matching detection on any of 
 a clip (sound.source: library rotation, or legacy: random from a folder), servos flapping up/down and the
 light on (light.pattern: steady, strobe or random). After scare_seconds everything stops, then
 nothing fires again until cooldown_seconds have passed.
-Detection and switching keep running the whole time. Both models see the same frame.
-Animal boxes matching person boxes are rejected; smaller held animals remain eligible.
-Person regions and active trigger positions are scoped to their source camera.
+Detection and switching keep running the whole time. A single four-class model handles each frame.
+Only animal labels can trigger; person predictions never veto an animal.
+Confirmation histories are scoped to each camera.
 Light and sound start and stop through scare/deterrent.py (shared with scare.deter_test), which
 logs one line and one CSV row per scare. Light settings are checked before the cameras open.
 Ctrl+C, SIGTERM, SIGHUP, q / Esc or an error: the lamp is left off, aplay stopped, GPIO released.
@@ -22,12 +22,36 @@ import time
 from . import ROOT, load_config
 from .activation_log import ActivationLog
 from .camera import Camera
+from .confirmation import TargetConfirmer
 from .detector import Detector
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
-from .person_guard import PersonGuard
 from .light import Light
 from .servos import Servos
 from .sound import Sound
+
+
+def min_confidences(rules, detector_conf: float) -> dict:
+    """controller.min_confidence as {label: threshold} for every trigger label.
+
+    Either one number for all labels, or a mapping with a `default` and per-label overrides.
+    """
+    raw = rules["min_confidence"]
+    if isinstance(raw, dict):
+        unknown = set(raw) - set(rules["labels"]) - {"default"}
+        if unknown:
+            raise ValueError(f"min_confidence: not in controller.labels: {sorted(unknown)}")
+        if "default" not in raw and set(rules["labels"]) - set(raw):
+            raise ValueError("min_confidence: needs a default for labels it doesn't list")
+        out = {label: raw.get(label, raw.get("default")) for label in rules["labels"]}
+    else:
+        out = {label: raw for label in rules["labels"]}
+    for label, t in out.items():
+        if not isinstance(t, (int, float)) or not 0 < t <= 1:
+            raise ValueError(f"min_confidence for {label} must be in (0, 1], got {t!r}")
+        if t < detector_conf:
+            print(f"[controller] note: {label} min_confidence {t} is below detector.conf_threshold "
+                  f"{detector_conf}, so it acts as {detector_conf}", flush=True)
+    return out
 
 
 def main() -> None:
@@ -46,14 +70,10 @@ def main() -> None:
 
     detector = Detector(ROOT / d["model"], ROOT / d["labels"], d["num_threads"],
                         d["conf_threshold"], d["iou_threshold"])
-    # Require both models before opening hardware; never silently skip person checks.
-    pd = cfg["person_detector"]
-    person_detector = Detector(ROOT / pd["model"], ROOT / pd["labels"], pd["num_threads"],
-                               pd["conf_threshold"], pd["iou_threshold"])
-    if "person" not in person_detector.labels:
-        raise ValueError("Person detector labels must include 'person'.")
-    # Validate policy settings before hardware initialization.
-    PersonGuard(pd["conf_threshold"], pd["hold_seconds"], pd.get("same_object_iou", 0.5))
+    # No second detector: the exported model must contain these four classes.
+    if detector.labels != ["raccoon", "groundhog", "squirrel", "person"]:
+        raise ValueError("Expected four-class labels: raccoon, groundhog, squirrel, person")
+    thresholds = min_confidences(rules, d["conf_threshold"])  # validate before hardware
     log_path = (cfg.get("log") or {}).get("activations")
 
     camera = servos = None
@@ -61,14 +81,14 @@ def main() -> None:
     try:
         activations = ActivationLog(ROOT / log_path) if log_path else None  # null: terminal only
         deterrent.log = activations
-        camera = Camera(c["width"], c["height"], c["ids"])
-        guards = [PersonGuard(pd["conf_threshold"], pd["hold_seconds"],
-                              pd.get("same_object_iou", 0.5)) for _ in camera.ids]
+        camera = Camera(c["width"], c["height"], c["ids"], c.get("exposure_value", 0.0))
+        confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
+                                      rules["confirmation_gap_seconds"]) for _ in camera.ids]
         deterrent.light = Light.from_config(cfg["light"])
         sound = deterrent.sound = Sound(cfg["sound"], ROOT)
         sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
         servos = Servos(cfg["servos"])
-        run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, servos)
+        run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos)
     except (KeyboardInterrupt, Shutdown) as e:
         print(f"\n[controller] stopping ({str(e) or 'Ctrl+C'})", flush=True)
     finally:
@@ -87,7 +107,7 @@ def main() -> None:
         print("[controller] stopped: lamp off, aplay stopped, GPIO released", flush=True)
 
 
-def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, servos) -> None:
+def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos) -> None:
     """The main loop; returns when the debug window is closed (q / Esc)."""
     if not args.headless:
         from . import display
@@ -97,16 +117,15 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
     quiet_until = 0.0     # no new scare before this
     next_flap = 0.0
     servo_up = False
-    active_target = None
-    active_camera = None
     last_frame_t = time.monotonic()
     fps = 0.0
     next_switch = last_frame_t + c["dwell_seconds"]
     switch_ms = 0.0
     next_note = 0.0       # the "seen but ignored" notes print at most once a second
     feeds = [None] * len(camera.ids)  # per camera, its last (frame, detections, hits, time)
-    print(f"[controller] watching cameras {camera.ids} for {rules['labels']} "
-          f"(conf >= {rules['min_confidence']})", flush=True)
+    print(f"[controller] watching cameras {camera.ids}, min confidence "
+          + ", ".join(f"{k} {v}" for k, v in thresholds.items())
+          + f", {rules['confirm_frames']} frame(s) to confirm", flush=True)
 
     servos.down()
     while True:
@@ -118,34 +137,19 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
         if switch_t is not None:  # time the switch up to the new camera's first frame
             switch_ms = (time.monotonic() - switch_t) * 1000
             next_switch = time.monotonic() + c["dwell_seconds"]
-        people = [det for det in person_detector.detect(frame) if det.label == "person"]
-        animal_detections = detector.detect(frame)
-        detections = animal_detections + people
+        detections = detector.detect(frame)
+        people = [det for det in detections if det.label == "person"]
+        animal_detections = [det for det in detections if det.label in rules["labels"]]
         now = time.monotonic()
-        guard = guards[camera.current]
-        guard.update(people, now)
         hits = [
             det for det in animal_detections
-            if det.label in rules["labels"] and det.confidence >= rules["min_confidence"]
+            if det.label in thresholds and det.confidence >= thresholds[det.label]
         ]
-        rejected = [det for det in hits if guard.blocks(det)]
-        hits = [det for det in hits if not guard.blocks(det)]
-        if (scare_until and active_camera == camera.current and
-                active_target is not None and guard.blocks(active_target)):
-            print("[controller] person matches active target box: stopping scare", flush=True)
-            scare_until = 0.0
-            active_target = None
-            active_camera = None
-            deterrent.end("person_abort")  # light off, aplay stopped, logged
-            servos.ramp(servos.down_angle, rules["return_deg_per_s"])
-            servo_up = False
-            quiet_until = max(quiet_until, time.monotonic() + rules["cooldown_seconds"])
+        hits = confirmers[camera.current].update(hits, now)
         feeds[camera.current] = (frame, detections, hits, now)
 
         if hits and now >= quiet_until:
             best = hits[0]
-            active_target = best
-            active_camera = camera.current
             print(f"[controller] SCARE: camera {camera.ids[camera.current]} {best.label} "
                   f"{best.confidence:.2f} at {best.box}", flush=True)
             scare_until = now + rules["scare_seconds"]
@@ -158,8 +162,6 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
         elif hits:
             note = (f"{hits[0].label} {hits[0].confidence:.2f} ignored: " +
                     ("scare running" if scare_until else f"cooldown, {quiet_until - now:.1f}s left"))
-        elif rejected:
-            note = f"{rejected[0].label} {rejected[0].confidence:.2f} blocked: matches a person box"
         elif people:
             note = f"{len(people)} person(s), no target"
         else:
@@ -176,8 +178,6 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
         elif scare_until:
             print("[controller] scare over", flush=True)
             scare_until = 0.0
-            active_target = None
-            active_camera = None
             deterrent.end("timeout")  # light off, aplay stopped, logged
             servos.ramp(servos.down_angle, rules["return_deg_per_s"])
             servo_up = False
@@ -190,8 +190,6 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
                 state = f"SCARING {scare_until - now:.1f}s"
             elif now < quiet_until:
                 state = f"cooldown {quiet_until - now:.1f}s"
-            elif rejected:
-                state = "PERSON MATCH"
             else:
                 state = "watching"
             status = [
@@ -210,7 +208,7 @@ def run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, 
                 f_frame, f_dets, f_hits, f_t = feed
                 age = "live" if live else f"{now - f_t:.1f}s ago"
                 views.append((f"camera {camera.ids[i]}: {age}", f_frame, f_dets, f_hits, live))
-            line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(rejected)} person-match blocks"
+            line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"
             if len(camera.ids) > 1:
                 line2 += f"   switch {switch_ms:.0f} ms every {c['dwell_seconds']}s"
             if not display.show(views, status, line2):

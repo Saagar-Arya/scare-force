@@ -17,7 +17,8 @@ os.environ.setdefault("LIBCAMERA_LOG_LEVELS", "*:WARN")
 
 
 class Camera:
-    def __init__(self, width: int = 640, height: int = 480, ids: list[int] = (0,)):
+    def __init__(self, width: int = 640, height: int = 480, ids: list[int] = (0,),
+                 exposure_value: float = 0.0):
         from picamera2 import Picamera2
 
         found = [c["Num"] for c in Picamera2.global_camera_info()]
@@ -27,6 +28,9 @@ class Camera:
                 print(f"[camera] camera {n} not found (have {found}), skipping it", flush=True)
         if not self.ids:
             raise RuntimeError(f"none of cameras {list(ids)} found (have {found})")
+        if not -8.0 <= exposure_value <= 8.0:
+            raise ValueError(f"exposure_value must be in [-8, 8] stops, got {exposure_value}")
+        self.ev = float(exposure_value)  # auto-exposure compensation, applied to every camera
         self.size = (width, height)
         self.cam = None
         self.current = None  # index into self.ids of the open camera
@@ -42,7 +46,8 @@ class Camera:
             self.cam.close()
         self.cam = Picamera2(self.ids[i])
         self.cam.configure(
-            self.cam.create_preview_configuration(main={"size": self.size, "format": "RGB888"})
+            self.cam.create_preview_configuration(main={"size": self.size, "format": "RGB888"},
+                                                  controls={"ExposureValue": self.ev})
         )
         self.cam.start()
         self.current = i
@@ -65,7 +70,7 @@ if __name__ == "__main__":
     from . import load_config
 
     cfg = load_config()["camera"]
-    cam = Camera(cfg["width"], cfg["height"], cfg["ids"])
+    cam = Camera(cfg["width"], cfg["height"], cfg["ids"], cfg.get("exposure_value", 0.0))
     for i, n in enumerate(cam.ids):
         t = time.perf_counter()
         cam.select(i)
