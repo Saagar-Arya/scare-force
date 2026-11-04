@@ -6,13 +6,20 @@ Where the clips come from is sound.source in config.yaml:
     library  the deterrence sound library's generic set (scare/sounds/library.yaml, see
              scare/sound_library.py), in the library's order, which alternates sound types.
              next_clip() starts at clip 0, advances one clip per scare and wraps.
-Plays straight to ALSA with aplay: it starts faster than going through PipeWire.
+Plays straight to ALSA with aplay: it starts faster than going through PipeWire. aplay runs under
+`setpriv --pdeathsig TERM`, so the kernel stops it if this process dies for any reason (even
+kill -9): a clip never outlives the program. stop() terminates it and waits for it.
+result() describes the last clip: id, sound type, aplay's exit code, how long it played, and
+whether stop() cut it off (aplay catches SIGTERM and exits 0, so the exit code can't tell).
 
 Self-test: python -m scare.sound   (plays every clip in turn)
 """
 
 import random
+import shutil
 import subprocess
+import threading
+import time
 from pathlib import Path
 
 SOURCES = ("legacy", "library")
@@ -30,16 +37,24 @@ class Sound:
 
             self.library = Library.load(root / cfg["library"], mode="generic")
             self.clips = self.library.clips_for(None)  # the generic set, in play order
+            self.types = {c["id"]: c["sound_type"] for c in self.library.clip_records(None)}
             print(f"[sound] library {cfg['library']}: profile {self.library.profile}, "
                   f"{len(self.clips)} generic clips", flush=True)
         else:
             self.clips = sorted((root / cfg["dir"]).glob("*.wav"))
             if not self.clips:
                 raise RuntimeError(f"no .wav files in {root / cfg['dir']}")
+            # legacy clips have no recorded type: 0_siren.wav -> siren
+            self.types = {c.stem: c.stem.split("_", 1)[-1] for c in self.clips}
+        setpriv = shutil.which("setpriv")
+        self._wrap = [setpriv, "--pdeathsig", "TERM"] if setpriv else []
         self._next = 0                   # library: index of the next clip in the rotation
         self._last: int | None = None    # legacy: index of the last clip picked
         self.proc: subprocess.Popen | None = None
         self.current: Path | None = None
+        self.started_t: float | None = None   # monotonic: aplay process started
+        self._ended_t: float | None = None    # monotonic: aplay exited (set by the reaper thread)
+        self._stopped = False                 # stop() terminated the clip before its end
         print(f"[sound] setting {cfg['mixer_card']}/{cfg['mixer_control']} to {cfg['level']}%",
               flush=True)
         subprocess.run(["amixer", "-q", "-M", "-c", cfg["mixer_card"], "sset",
@@ -62,7 +77,29 @@ class Sound:
         self.stop()
         print(f"[sound] playing {clip.name} on {self.device}", flush=True)
         self.current = clip
-        self.proc = subprocess.Popen(["aplay", "-q", "-D", self.device, str(clip)])
+        self._ended_t = None
+        self._stopped = False
+        self.proc = subprocess.Popen(self._wrap + ["aplay", "-q", "-D", self.device, str(clip)])
+        self.started_t = time.monotonic()
+        threading.Thread(target=self._reap, args=(self.proc,), name="aplay-reaper",
+                         daemon=True).start()
+
+    def _reap(self, proc: subprocess.Popen) -> None:
+        proc.wait()
+        if proc is self.proc:
+            self._ended_t = time.monotonic()
+
+    def clip_type(self, clip: Path) -> str:
+        return self.types.get(clip.stem, "unknown")
+
+    def result(self) -> dict:
+        """The last clip played: id, type, aplay rc (None while playing), seconds played, stopped."""
+        if self.proc is None:
+            return {"clip_id": "", "sound_type": "", "rc": None, "seconds": None, "stopped": False}
+        rc = self.proc.poll()
+        end = self._ended_t if rc is not None and self._ended_t else time.monotonic()
+        return {"clip_id": self.current.stem, "sound_type": self.clip_type(self.current), "rc": rc,
+                "seconds": end - self.started_t, "stopped": self._stopped}
 
     def prime(self) -> None:
         """Play 0.1 s of silence. The first sound after boot switches the Pi 4's PWM clock (shared
@@ -75,10 +112,20 @@ class Sound:
         return self.proc is not None and self.proc.poll() is None
 
     def stop(self) -> None:
+        """Terminate aplay if it's still playing and wait for it to exit."""
         if self.is_playing():
             print("[sound] stop", flush=True)
+            self._stopped = True
             self.proc.terminate()
-            self.proc.wait()
+        if self.proc is not None:
+            try:
+                self.proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                print("[sound] aplay ignored SIGTERM: killing it", flush=True)
+                self.proc.kill()
+                self.proc.wait()
+            if self._ended_t is None:
+                self._ended_t = time.monotonic()
 
 
 if __name__ == "__main__":
