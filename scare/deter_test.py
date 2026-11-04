@@ -86,7 +86,7 @@ def main() -> None:
             time.sleep(max(0.0, trigger_t + seconds - time.monotonic()))
             deterrent.end("timeout")
     except (KeyboardInterrupt, Shutdown) as e:
-        print(f"\n[deter_test] stopping ({e or 'Ctrl+C'})", flush=True)
+        print(f"\n[deter_test] stopping ({str(e) or 'Ctrl+C'})", flush=True)
     finally:
         ignore_signals()
         deterrent.close()

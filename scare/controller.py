@@ -70,7 +70,7 @@ def main() -> None:
         servos = Servos(cfg["servos"])
         run(args, cfg, camera, guards, detector, person_detector, deterrent, sound, servos)
     except (KeyboardInterrupt, Shutdown) as e:
-        print(f"\n[controller] stopping ({e or 'Ctrl+C'})", flush=True)
+        print(f"\n[controller] stopping ({str(e) or 'Ctrl+C'})", flush=True)
     finally:
         ignore_signals()  # a second Ctrl+C / SIGTERM mustn't cut the cleanup short
         try:
