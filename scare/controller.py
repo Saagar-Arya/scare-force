@@ -83,7 +83,7 @@ def main() -> None:
         confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                       rules["confirmation_gap_seconds"]) for _ in camera.ids]
         deterrent.light = Light(cfg["light"])
-        sound = deterrent.sound = Sound(cfg["sound"], ROOT)
+        sound = deterrent.sound = Sound(cfg["sound"], ROOT, rules["scare_seconds"])
         sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
         servos = Servos(cfg["servos"])
         run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos)

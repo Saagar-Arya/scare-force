@@ -10,6 +10,7 @@ scare/light.py           Light.start() runs light.pattern, off() / on()   GPIO26
 scare/servos.py          Servos.up() / down() / set(angle)                GPIO19, hardware PWM
 scare/sound.py           Sound.next_clip() / play(clip) / stop()          3.5 mm jack
 scare/sound_library.py   which clips play, from scare/sounds/library.yaml
+scare/sound_fill.py      makes each clip last the whole scare, ending at a pause
 scare/deterrent.py       one scare's light + sound: start, end on time, log it
 scare/activation_log.py  one CSV row per scare (log.activations)
 scare/controller.py      main loop: cameras -> detector -> scare, cooldown
@@ -84,3 +85,13 @@ angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`
 Clips come from the sound library in `scare/sounds/` (see `scare/sounds/SOURCE.md` for where they
 come from, their licenses and how to update them). Each scare plays the next clip of the generic
 set, alternating sound types.
+
+Every clip lasts the whole scare, like the light and the arms: at startup `scare/sound_fill.py`
+renders each one to exactly `controller.scare_seconds` (into RAM, `/dev/shm`). A short clip
+repeats; the sound ends at a pause in its last `sound.end_search_s` (1 s) so no bark or word is
+cut through, or, with no pause there (the sirens), fades out over `sound.end_fade_s`, ending on
+time. Levels are unchanged. Each scare's CSV row records where its sound ended
+(`sound_audible_s`), how many times the clip started and how it ended.
+
+The species sets (raccoon, groundhog, squirrel) and their clips are in the repo too, but not
+connected: only the generic set plays. `python -m scare.sound_library` checks every set.

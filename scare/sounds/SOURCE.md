@@ -10,7 +10,7 @@ cut down to the generic set this repo plays; the species sets and levels live in
 |---|---|
 | `library.yaml` | The manifest. Every clip's id, sound type, source page, downloaded file, author, **license**, excerpt, evidence and notes. It's also the attribution the CC BY / BY-SA / BY-NC licenses require |
 | `profiles/pyle_plmr52.yaml` | The speaker profile the clips were built for (Pyle PLMR52) |
-| `build/pyle_plmr52/*.wav` | The playable clips (16, the generic set): loudness-matched, trimmed, padded |
+| `build/pyle_plmr52/*.wav` | The playable clips (23: the generic set's 16, plus the 4 raptor and 3 woodchuck-alarm clips only the species sets use): loudness-matched, trimmed, padded |
 | `build/pyle_plmr52/report.csv` | The build's per-clip measurements (LUFS, true peak, onset, ...) and pass/fail |
 
 **Don't edit the clips here.** The source audio (`originals/`) and the build script
@@ -24,6 +24,9 @@ clips are fine for this course project but not for commercial use.
 
 What plays: the controller plays the **generic** set (16 clips:
 human speech, shout, scream, dog bark, siren) in the library's round-robin order, from a random
-clip each run, one per scare. The raptor and woodchuck-alarm clips aren't in the generic set, so
-their WAVs were removed here (2026-11-04); they're still in scare-force-plan, and library.yaml and
-report.csv still list them.
+clip each run, one per scare, each rendered to the scare's length at startup
+(`scare/sound_fill.py`). The species sets (raccoon 12, groundhog 8, squirrel 8) are kept here
+with their clips, but not connected: species-specific sound is extra credit and undecided. The
+raptor and woodchuck-alarm WAVs were removed on 2026-11-04 and restored on 2026-11-05 for that
+reason (byte-identical to the copies in commit 859b2ab^). The woodchuck-alarm clips are
+`flagged`, so even the groundhog set leaves them out.

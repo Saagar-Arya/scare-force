@@ -72,7 +72,7 @@ def main() -> None:
         if not args.no_light:
             deterrent.light = Light(light_cfg)
         if not args.no_sound:
-            deterrent.sound = Sound(cfg["sound"], ROOT)
+            deterrent.sound = Sound(cfg["sound"], ROOT, seconds)
         what = " + ".join(x for x, on in (
             (f"light {light_cfg['pattern']}", deterrent.light), ("sound", deterrent.sound)) if on)
         print(f"[deter_test] {args.scares} scare(s) of {seconds:g} s, {args.gap:g} s apart: "

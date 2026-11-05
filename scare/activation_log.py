@@ -10,7 +10,11 @@ Columns:
     light_pattern, flashes     steady | strobe | random | off (no light); times the lamp came on
     clip_id, sound_type        empty with no sound
     aplay_rc                   aplay's exit code (0 also when stopped: aplay exits 0 on SIGTERM)
-    sound_s, sound_stopped     seconds the clip played; 1 if the scare's end cut it off
+    sound_s, sound_stopped     seconds aplay ran; 1 if the scare's end stopped it (normal: the
+                               render is exactly the scare long, so it is stopped in its silence)
+    sound_audible_s            where the sound itself ends in the render (<= the scare length)
+    sound_plays, sound_ending  times the clip started in the render; break (ended at a pause)
+                               | fade (faded out)
     trigger_to_relay_on_ms     trigger -> GPIO driven on for the first time
     trigger_to_aplay_start_ms  trigger -> aplay process started (not the first sample out)
 The header is written when the file is new or empty. A file with a different header (an older
@@ -25,7 +29,8 @@ from pathlib import Path
 
 FIELDS = ("start", "end", "end_reason", "trigger_source", "label", "confidence", "camera",
           "light_pattern", "flashes", "clip_id", "sound_type", "aplay_rc", "sound_s",
-          "sound_stopped", "trigger_to_relay_on_ms", "trigger_to_aplay_start_ms")
+          "sound_stopped", "sound_audible_s", "sound_plays", "sound_ending",
+          "trigger_to_relay_on_ms", "trigger_to_aplay_start_ms")
 
 
 class ActivationLog:

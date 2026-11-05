@@ -10,8 +10,8 @@ scare.deter_test (manual trigger) both start and end scares through this, so the
 
 end() prints one line per scare:
     [scare] end reason=timeout source=detection label=raccoon conf=0.91 camera=0 light=strobe
-            flashes=10 relay_on=+2ms clip=dog_bark_nono_04 type=dog_bark rc=0 played=5.01s
-            stopped=1 aplay_start=+9ms
+            flashes=10 relay_on=+2ms clip=dog_bark_nono_04 type=dog_bark rc=0 played=4.99s
+            audible=4.24s plays=1 ending=break stopped=1 aplay_start=+9ms
 (on one line). Shutdown: handle_signals() turns SIGTERM and SIGHUP into a Shutdown exception
 (SIGINT is already KeyboardInterrupt), so the caller's finally runs and calls close();
 ignore_signals() keeps a second signal from interrupting that cleanup.
@@ -117,6 +117,8 @@ class Deterrent:
             "aplay_rc": snd.get("rc"),
             "sound_s": None if snd.get("seconds") is None else f"{snd['seconds']:.2f}",
             "sound_stopped": int(snd["stopped"]) if snd else None,
+            "sound_audible_s": None if snd.get("audible_s") is None else f"{snd['audible_s']:.2f}",
+            "sound_plays": snd.get("plays"), "sound_ending": snd.get("ending"),
             "trigger_to_relay_on_ms": _ms(self.light.first_on_t, t0) if self.light else None,
             "trigger_to_aplay_start_ms": _ms(snd.get("started_t"), t0) if snd else None,
         }
@@ -130,6 +132,8 @@ class Deterrent:
               f"clip={row['clip_id'] or ''} type={row['sound_type'] or ''} "
               f"rc={'' if row['aplay_rc'] is None else row['aplay_rc']} "
               f"played={row['sound_s'] + 's' if row['sound_s'] else ''} "
+              f"audible={row['sound_audible_s'] + 's' if row['sound_audible_s'] else ''} "
+              f"plays={row['sound_plays'] or ''} ending={row['sound_ending'] or ''} "
               f"stopped={'' if row['sound_stopped'] is None else row['sound_stopped']} "
               f"aplay_start={'' if aplay is None else f'+{aplay}ms'}", flush=True)
         if self.log:
