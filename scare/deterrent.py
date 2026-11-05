@@ -1,17 +1,27 @@
-"""One scare's light and sound, and its log line and CSV row. scare.controller (detection) and
-scare.deter_test (manual trigger) both start and end scares through this, so they run the same code.
+"""One scare's light and sound, started together and ended together; its log line and CSV row.
+scare.controller (detection) and scare.deter_test (manual trigger) both go through this. The arms
+are not in here yet: scare.controller drives the servos itself for the scare's length (stage 2
+moves them in here, timing only).
 
-    d = Deterrent(light, sound, log)       # any of them may be None (no light / no sound / no CSV)
-    d.start(trigger_t, "detection", 5.0, label="raccoon", confidence=0.91, camera=0)
-    ...                                    # at trigger_t + 5.0 a timer turns the light off and
-                                           # stops aplay, however busy the caller's loop is
-    d.end("timeout")                       # light off, aplay stopped, logged
-    d.close()                              # ends a running scare as "shutdown", releases the pin
+    d = Deterrent(light, sound, log)           # any may be None (no light/sound/CSV)
+    length = d.start(trigger_t, "detection", 5.0, label="raccoon", confidence=0.91, camera=0)
+    ...                                        # at the scare's end a timer ends all three
+    d.end("timeout")                           # logged (outputs already stopped by the timer)
+    d.close()                                  # ends a running scare as "shutdown", releases pins
+
+How long a scare lasts: the sound decides. start() takes the next clip, whose render ends at a
+pause near `seconds` (controller.scare_seconds +/- end_window_s, see scare/sound_fill.py), and
+sets the scare's end, `deadline`, to that length after the start. The light plans whole flashes
+whose last goes off at the deadline, and aplay plays the render, which ends there too. Without
+sound the scare is exactly `seconds`. start() returns the length; the controller flaps the arms
+for that long. At the deadline a timer stops the light and lets aplay play out (it finishes by
+itself; stopped only if it is still going SOUND_GRACE_S later).
 
 end() prints one line per scare:
-    [scare] end reason=timeout source=detection label=raccoon conf=0.91 camera=0 light=strobe
-            flashes=10 relay_on=+2ms clip=dog_bark_nono_04 type=dog_bark rc=0 played=5.01s
-            stopped=1 aplay_start=+9ms
+    [scare] end reason=timeout source=detection label=raccoon conf=0.91 camera=0 scare=4.82s
+            light=strobe flashes=10 relay_on=+2ms light_s=4.82s
+            clip=dog_bark_amada44_03 type=dog_bark rc=0 played=4.84s plays=1
+            ending=break stopped=0 aplay_start=+9ms
 (on one line). Shutdown: handle_signals() turns SIGTERM and SIGHUP into a Shutdown exception
 (SIGINT is already KeyboardInterrupt), so the caller's finally runs and calls close();
 ignore_signals() keeps a second signal from interrupting that cleanup.
@@ -23,6 +33,8 @@ import time
 from datetime import datetime
 
 END_REASONS = ("timeout", "shutdown")
+SOUND_GRACE_S = 0.3   # aplay starts a few ms late, so it may end a little after the deadline
+SYNC_GRACE_S = 0.05   # the light's last off is due at the deadline
 
 
 class Shutdown(BaseException):
@@ -57,42 +69,47 @@ class Deterrent:
         self.light, self.sound, self.log = light, sound, log
         self._scare: dict | None = None
         self._timer: threading.Timer | None = None
-        self._stop_lock = threading.Lock()  # the timer and end() may stop light and sound at once
+        self._stop_lock = threading.Lock()  # the timer and end() may stop the outputs at once
         self._off_wall: float | None = None  # wall time this scare's outputs stopped (CSV end)
 
     def start(self, trigger_t: float, source: str, seconds: float, *, label: str = "",
-              confidence=None, camera="") -> None:
-        """Start a scare: the light pattern, then the next clip. trigger_t: time.monotonic() at
-        the moment the scare was decided (latencies are measured from it). At trigger_t + seconds
-        a timer stops the light and sound; end() must still be called to log the scare."""
+              confidence=None, camera="") -> float:
+        """Start a scare. trigger_t: time.monotonic() when it was decided (latencies are from
+        it). seconds: the target length (the sound picks the exact one). Returns the length; at
+        start + length a timer ends the light and sound. end() must still be called."""
         if self._scare is not None:
             raise RuntimeError("a scare is already running")
+        clip = self.sound.next_clip() if self.sound else None
+        length = self.sound.length(clip) if clip is not None else float(seconds)
+        t0 = time.monotonic()
+        deadline = t0 + length
         self._scare = {"start": time.time(), "trigger_t": trigger_t, "trigger_source": source,
-                       "label": label, "confidence": confidence, "camera": camera}
+                       "label": label, "confidence": confidence, "camera": camera,
+                       "length": length}
         self._off_wall = None
         if self.light:
-            self.light.start()
+            self.light.start(deadline)
         if self.sound:
-            self.sound.play(self.sound.next_clip())
-        self._timer = threading.Timer(max(0.0, trigger_t + seconds - time.monotonic()),
-                                      self._stop_outputs)
+            self.sound.play(clip)
+        self._timer = threading.Timer(max(0.0, deadline - time.monotonic()), self._stop_outputs)
         self._timer.daemon = True
         self._timer.start()
+        return length
 
     def _stop_outputs(self) -> None:
-        """Light off first, then aplay. Called by the timer, end() and close()."""
+        """Light, then sound. Called by the timer, end(), close()."""
         with self._stop_lock:
             try:
                 if self.light:
-                    self.light.off()
+                    self.light.finish(SYNC_GRACE_S)
             finally:
                 if self._off_wall is None:
                     self._off_wall = time.time()
                 if self.sound:
-                    self.sound.stop()
+                    self.sound.finish(SOUND_GRACE_S)
 
     def end(self, reason: str) -> None:
-        """Stop the scare (light off first, then aplay), print its line, write its CSV row."""
+        """Stop the scare if the timer hasn't, print its line, write its CSV row."""
         if reason not in END_REASONS:
             raise ValueError(f"end reason must be one of {END_REASONS}, got {reason!r}")
         s = self._scare
@@ -102,36 +119,47 @@ class Deterrent:
         if self._timer is not None:
             self._timer.cancel()
             self._timer = None
+        if reason == "shutdown" and self.sound:
+            self.sound.stop()  # don't let a clip play out on the way down
         self._stop_outputs()  # nothing left to do if the timer already ran
         snd = self.sound.result() if self.sound else {}
+        lt = self.light
         t0 = s["trigger_t"]
+        light_s = (lt.last_off_t - lt.first_on_t
+                   if lt and lt.first_on_t is not None and lt.last_off_t is not None else None)
         row = {
             "start": _iso(s["start"]), "end": _iso(self._off_wall or time.time()),
             "end_reason": reason,
             "trigger_source": s["trigger_source"], "label": s["label"],
             "confidence": None if s["confidence"] is None else f"{s['confidence']:.3f}",
-            "camera": s["camera"],
-            "light_pattern": self.light.pattern if self.light else "off",
-            "flashes": self.light.flashes if self.light else None,
+            "camera": s["camera"], "scare_s": f"{s['length']:.2f}",
+            "light_pattern": lt.pattern if lt else "off",
+            "flashes": lt.flashes if lt else None,
+            "light_s": None if light_s is None else f"{light_s:.2f}",
             "clip_id": snd.get("clip_id"), "sound_type": snd.get("sound_type"),
             "aplay_rc": snd.get("rc"),
             "sound_s": None if snd.get("seconds") is None else f"{snd['seconds']:.2f}",
             "sound_stopped": int(snd["stopped"]) if snd else None,
-            "trigger_to_relay_on_ms": _ms(self.light.first_on_t, t0) if self.light else None,
+            "sound_plays": snd.get("plays"), "sound_ending": snd.get("ending"),
+            "trigger_to_relay_on_ms": _ms(lt.first_on_t, t0) if lt else None,
             "trigger_to_aplay_start_ms": _ms(snd.get("started_t"), t0) if snd else None,
         }
-        conf = "" if row["confidence"] is None else f"{s['confidence']:.2f}"
-        relay = row["trigger_to_relay_on_ms"]
-        aplay = row["trigger_to_aplay_start_ms"]
+        def f(key, unit=""):
+            return "" if row[key] is None or row[key] == "" else f"{row[key]}{unit}"
+
+        def plus(key):
+            return "" if row[key] is None else f"+{row[key]}ms"
+
+        conf = "" if s["confidence"] is None else f"{s['confidence']:.2f}"
         print(f"[scare] end reason={reason} source={row['trigger_source']} label={row['label']} "
-              f"conf={conf} camera={row['camera']} light={row['light_pattern']} "
-              f"flashes={row['flashes'] if self.light else ''} "
-              f"relay_on={'' if relay is None else f'+{relay}ms'} "
-              f"clip={row['clip_id'] or ''} type={row['sound_type'] or ''} "
-              f"rc={'' if row['aplay_rc'] is None else row['aplay_rc']} "
-              f"played={row['sound_s'] + 's' if row['sound_s'] else ''} "
-              f"stopped={'' if row['sound_stopped'] is None else row['sound_stopped']} "
-              f"aplay_start={'' if aplay is None else f'+{aplay}ms'}", flush=True)
+              f"conf={conf} camera={row['camera']} scare={row['scare_s']}s "
+              f"light={row['light_pattern']} flashes={f('flashes')} "
+              f"relay_on={plus('trigger_to_relay_on_ms')} light_s={f('light_s', 's')} "
+              f"clip={f('clip_id')} "
+              f"type={f('sound_type')} rc={f('aplay_rc')} played={f('sound_s', 's')} "
+              f"plays={f('sound_plays')} ending={f('sound_ending')} "
+              f"stopped={f('sound_stopped')} aplay_start={plus('trigger_to_aplay_start_ms')}",
+              flush=True)
         if self.log:
             self.log.write(row)
 

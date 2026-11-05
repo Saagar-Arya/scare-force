@@ -8,7 +8,8 @@ Deterrent code scare.controller uses (scare/deterrent.py), logged to the same CS
     python -m scare.deter_test --scares 20 --gap 1   # 20 scares, 1 s apart
     python -m scare.deter_test --seconds 10          # each scare 10 s (default scare_seconds)
 
-Each scare lasts controller.scare_seconds and ends as timeout. Ctrl+C, SIGTERM or SIGHUP ends a
+Each scare lasts about controller.scare_seconds (its sound sets the exact end; the light ends
+with it) and ends as timeout. Ctrl+C, SIGTERM or SIGHUP ends a
 running scare as shutdown and leaves the lamp off, aplay stopped and the pin released.
 Light settings are checked first, as in the controller. Refuses to run while scare.controller
 is running (both would drive GPIO26 and the jack). The relay board is powered through the
@@ -72,7 +73,8 @@ def main() -> None:
         if not args.no_light:
             deterrent.light = Light(light_cfg)
         if not args.no_sound:
-            deterrent.sound = Sound(cfg["sound"], ROOT)
+            deterrent.sound = Sound(cfg["sound"], ROOT, seconds,
+                                    cfg["controller"]["end_window_s"])
         what = " + ".join(x for x, on in (
             (f"light {light_cfg['pattern']}", deterrent.light), ("sound", deterrent.sound)) if on)
         print(f"[deter_test] {args.scares} scare(s) of {seconds:g} s, {args.gap:g} s apart: "
@@ -82,8 +84,8 @@ def main() -> None:
                 time.sleep(args.gap)
             print(f"[deter_test] scare {i + 1}/{args.scares}", flush=True)
             trigger_t = time.monotonic()
-            deterrent.start(trigger_t, "manual", seconds)
-            time.sleep(max(0.0, trigger_t + seconds - time.monotonic()))
+            length = deterrent.start(trigger_t, "manual", seconds)
+            time.sleep(max(0.0, trigger_t + length - time.monotonic()) + 0.1)  # timer ends it
             deterrent.end("timeout")
     except (KeyboardInterrupt, Shutdown) as e:
         print(f"\n[deter_test] stopping ({str(e) or 'Ctrl+C'})", flush=True)

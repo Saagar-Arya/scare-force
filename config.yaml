@@ -62,8 +62,14 @@ sound:
   mixer_card: Headphones
   mixer_control: PCM
   level: 80                 # percent, set once at startup
-  library: scare/sounds/library.yaml   # its generic set, one clip per scare in order
-                            # (alternates sound types), from a random start each run, wrapping
+  library: scare/sounds/library.yaml   # its generic set: a random clip per scare, never the
+                            # one the previous scare played. The species sets are in the repo
+                            # but not connected.
+  # Every clip is rendered to last the scare (controller.scare_seconds +/- end_window_s):
+  # repeated if shorter, ended at the pause nearest scare_seconds rather than mid-bark or
+  # mid-word. With no pause in the window (the continuous sirens) it fades out over end_fade_s,
+  # ending at scare_seconds.
+  end_fade_s: 0.5
 
 controller:
   labels: [raccoon, groundhog, squirrel]  # only these labels trigger
@@ -73,7 +79,10 @@ controller:
   confirm_frames: 3         # frames in a row (~0.6 s at ~5 fps) before a scare; 1 = single frame
   confirm_iou: 0.3          # how much a box must overlap the last frame's to count as the same target
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
-  scare_seconds: 5          # how long the scare lasts
+  scare_seconds: 5          # how long a scare lasts. Light and sound start together and end
+                            # together, when that scare's sound ends; the arms flap that long:
+  end_window_s: 0.5         # at its pause nearest scare_seconds, within +/- this (4.76-5.34 s
+                            # with the generic set); 0 = every scare exactly scare_seconds
   flap_seconds: 0.5         # time between servo up and down while scaring
   return_deg_per_s: 90      # after a scare, ease back down this fast: jumping right after an up flap
                             # reverses the servos mid-move, and that current spike can brown out

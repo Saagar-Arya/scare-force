@@ -3,8 +3,9 @@
 With several cameras (camera.ids) only one streams at a time, so the loop watches each for
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
 the next clip from the sound library, servos flapping up/down and the
-light on (light.pattern: steady, strobe or random). After scare_seconds everything stops, then
-nothing fires again until cooldown_seconds have passed.
+light (light.pattern: steady, strobe or random, as whole flashes). The clip sets the scare's
+length (about scare_seconds, see scare/deterrent.py): light and sound end together then, the
+servos stop flapping then, and nothing fires again until cooldown_seconds have passed.
 Detection and switching keep running the whole time. A single four-class model handles each frame.
 Only animal labels can trigger; person predictions never veto an animal.
 Confirmation histories are scoped to each camera.
@@ -83,7 +84,8 @@ def main() -> None:
         confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                       rules["confirmation_gap_seconds"]) for _ in camera.ids]
         deterrent.light = Light(cfg["light"])
-        sound = deterrent.sound = Sound(cfg["sound"], ROOT)
+        sound = deterrent.sound = Sound(cfg["sound"], ROOT, rules["scare_seconds"],
+                                        rules["end_window_s"])
         sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
         servos = Servos(cfg["servos"])
         run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos)
@@ -150,12 +152,13 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
             best = hits[0]
             print(f"[controller] SCARE: {camera.names[camera.current]} {best.label} "
                   f"{best.confidence:.2f} at {best.box}", flush=True)
-            scare_until = now + rules["scare_seconds"]
+            # light.pattern (whole flashes) and the library's next clip; the clip sets the length
+            length = deterrent.start(now, "detection", rules["scare_seconds"], label=best.label,
+                                     confidence=best.confidence,
+                                     camera=camera.ids[camera.current])
+            scare_until = now + length  # the arms flap until the light and sound end
             quiet_until = scare_until + rules["cooldown_seconds"]
             next_flap = now
-            # light.pattern (steady, strobe or random), then the library's next clip
-            deterrent.start(now, "detection", rules["scare_seconds"], label=best.label,
-                            confidence=best.confidence, camera=camera.ids[camera.current])
             note = None
         elif hits:
             note = (f"{hits[0].label} {hits[0].confidence:.2f} ignored: " +
@@ -176,7 +179,7 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         elif scare_until:
             print("[controller] scare over", flush=True)
             scare_until = 0.0
-            deterrent.end("timeout")  # light off, aplay stopped, logged
+            deterrent.end("timeout")  # its timer already ended light and sound; this logs it
             servos.ramp(servos.down_angle, rules["return_deg_per_s"])
             servo_up = False
 

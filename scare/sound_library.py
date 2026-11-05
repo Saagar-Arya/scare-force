@@ -1,10 +1,15 @@
-"""Which clips to play: the generic set from sounds/library.yaml, in play order.
+"""Which clips to play: a set from sounds/library.yaml, in play order.
 
     lib = Library.load()          # active_profile from library.yaml
-    lib.clips_for()               # -> [Path(.../build/<profile>/<clip_id>.wav), ...]
+    lib.clips_for()               # the generic set -> [Path(.../build/<profile>/<clip_id>.wav), ...]
+    lib.clips_for("squirrel")     # a species set (raccoon, groundhog, squirrel)
 
-library.yaml is copied unchanged from scare-force-plan (see sounds/SOURCE.md); its species sets,
-label_map and cited_levels are used there, not here. Only the generic set is played.
+library.yaml is copied unchanged from scare-force-plan (see sounds/SOURCE.md). Only the generic
+set is played (scare/sound.py). The species sets and their WAVs are kept here, built and
+checked, but not connected: whether to play a set by detected species (extra credit, Challenge 1)
+is still open. label_map, mode and cited_levels in library.yaml are not used by this repo.
+
+Self-check: python -m scare.sound_library   (every set: clip count, types, missing WAVs)
 
 Clips are ordered round-robin across sound types, so consecutive clips differ in type where the
 set allows it. Flagged clips and clips with an `excluded_reason` (e.g. "too_peaky: ...") are left
@@ -57,7 +62,7 @@ class Library:
         self.profile = data["active_profile"]
         if GENERIC not in data["sets"]:
             raise ValueError("library.yaml needs a 'generic' set")
-        self.types = list(data["sets"][GENERIC])
+        self.sets = {name: list(types) for name, types in data["sets"].items()}
         self.clips = data["clips"]
 
     @classmethod
@@ -73,15 +78,17 @@ class Library:
     def playable(clip):
         return not clip.get("excluded_reason") and not clip.get("flagged", False)
 
-    def clip_records(self):
-        """Library records of the generic set, in play order."""
-        chosen = [c for t in self.types for c in self.clips
+    def clip_records(self, set_name: str = GENERIC):
+        """Library records of a set (default generic), in play order."""
+        if set_name not in self.sets:
+            raise KeyError(f"no set {set_name!r} in library.yaml (sets: {', '.join(self.sets)})")
+        chosen = [c for t in self.sets[set_name] for c in self.clips
                   if c["sound_type"] == t and self.playable(c)]
         return round_robin(chosen)
 
-    def clips_for(self):
-        """Built WAV paths of the generic set, in play order."""
-        paths = [self.build_dir / f"{c['id']}.wav" for c in self.clip_records()]
+    def clips_for(self, set_name: str = GENERIC):
+        """Built WAV paths of a set (default generic), in play order."""
+        paths = [self.build_dir / f"{c['id']}.wav" for c in self.clip_records(set_name)]
         missing = [p.name for p in paths if not p.exists()]
         if missing:
             raise BuildMissing(
@@ -89,3 +96,17 @@ class Library:
                 f"(e.g. {missing[0]}). Build them in scare-force-plan and copy them in: "
                 "see scare/sounds/SOURCE.md")
         return paths
+
+
+if __name__ == "__main__":
+    lib = Library.load()
+    print(f"profile {lib.profile}; generic is played, species sets are kept but not connected")
+    bad = 0
+    for name in lib.sets:
+        records = lib.clip_records(name)
+        missing = [c["id"] for c in records if not (lib.build_dir / f"{c['id']}.wav").exists()]
+        bad += len(missing)
+        types = Counter(c["sound_type"] for c in records)
+        print(f"  {name:10} {len(records):2} clips  " + ", ".join(f"{t} {n}" for t, n in types.items())
+              + (f"  MISSING {', '.join(missing)}" if missing else ""))
+    raise SystemExit(1 if bad else 0)

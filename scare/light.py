@@ -1,4 +1,4 @@
-"""Light: one GPIO pin driving a relay. start() runs the configured pattern for a scare.
+"""Light: one GPIO pin driving a relay. start(deadline) runs the configured pattern for a scare.
 
 The relay only switches the lamp on or off: there is no dimming.
 
@@ -7,9 +7,16 @@ Patterns (light.pattern in config.yaml; ported from scare-force-plan deterrence/
     strobe  on for duty/rate_hz, off for (1-duty)/rate_hz, repeating.
     random  as strobe, but every on and off time is scaled by its own random factor in
             [1-jitter, 1+jitter]: varied timing slows habituation. The seed is printed.
-The first flash comes on at once. Flashing runs in a background thread on a monotonic schedule
-(no drift); a wake-up more than 20 ms late restarts the schedule from now instead of catching up.
-on() and off() stop it first, so off() always leaves the light off.
+Whole flashes only, ending with the scare: start(deadline) plans the scare's flashes so the
+first comes on at once and the last goes off exactly at `deadline` (time.monotonic(); the end
+the sound chose, see scare/deterrent.py). To fit a whole number of flashes, the period is
+stretched or shrunk slightly (2 Hz over 4.76 s: 10 flashes at 2.00 Hz; over 5.34 s: 11 at
+2.03 Hz), never past max_rate_hz or under the relay minimum; random scales its jittered times to
+fit the same way. Steady is one flash: on at once, off at the deadline. Flashing runs in a
+background thread on that absolute schedule; if a wake-up is late, a flash that could no longer
+stay on for the relay minimum is skipped (never a half flash), and an off is never delayed.
+on() and off() stop it first, so off() always leaves the light off. finish(grace_s) lets the
+last flash end on schedule, then turns the light off.
 
 Relay protection: no setting may switch the relay on or off for less than RELAY_MIN_TOGGLE_S
 (0.15 s); light.relay_min_toggle_s can only raise that. An off is always immediate, but the light
@@ -23,7 +30,7 @@ controller calls it before opening the cameras; the constructor calls it again.
 close() leaves the light off and hands the pin back with the pull it had at boot (pull-down when
 active high), so the relay input doesn't float: gpiozero alone leaves it floating, reading HIGH.
 
-Self-test: python -m scare.light   (on 2 s, then the configured pattern 3 s, off)
+Self-test: python -m scare.light   (on 2 s, off 1 s, then the configured pattern for 3 s)
 """
 
 import random
@@ -37,6 +44,42 @@ OPTIONS = ("pattern", "rate_hz", "duty", "jitter", "max_rate_hz", "relay_min_tog
 RELAY_MIN_TOGGLE_S = 0.15  # floor: the relay never switches faster than this, whatever the config
 EPS = 1e-9  # so a setting exactly at a limit isn't rejected by float rounding
 LATE_TOLERANCE_S = 0.02
+
+
+def plan(pattern, rate_hz, duty, jitter, seconds, max_rate_hz, min_toggle_s, rng=None):
+    """A scare's flashes as [(on_s, off_s), ...] from its start: the first on at 0, the last off
+    at `seconds`, every flash whole. The flash count is the one nearest the configured rate whose
+    stretched period keeps every flash under max_rate_hz and every on/off time at least
+    min_toggle_s (random: tries each count with fresh jitter). [] if nothing fits."""
+    if seconds < min_toggle_s - EPS:
+        return []
+    if pattern == "steady":
+        return [(0.0, seconds)]
+    rng = rng or random.Random()
+    ideal = seconds * rate_hz + 1 - duty  # flash count at exactly rate_hz
+    first = max(1, round(ideal))
+    counts = [first] + [n for k in range(1, 50) for n in (first - k, first + k) if n >= 1]
+    for n in counts:
+        if pattern == "random":
+            on = [duty / rate_hz * rng.uniform(1 - jitter, 1 + jitter) for _ in range(n)]
+            off = [(1 - duty) / rate_hz * rng.uniform(1 - jitter, 1 + jitter)
+                   for _ in range(n - 1)]
+        else:
+            on, off = [duty / rate_hz] * n, [(1 - duty) / rate_hz] * (n - 1)
+        scale = seconds / (sum(on) + sum(off))
+        on, off = [x * scale for x in on], [x * scale for x in off]
+        periods = [a + b for a, b in zip(on, off)]
+        if min(on + off) < min_toggle_s - EPS:
+            continue
+        if periods and 1 / min(periods) > max_rate_hz + EPS:
+            continue
+        flashes, t = [], 0.0
+        for i, a in enumerate(on):
+            flashes.append((t, t + a))
+            t += a + (off[i] if i < len(off) else 0.0)
+        flashes[-1] = (flashes[-1][0], seconds)  # exactly, despite float sums
+        return flashes
+    return []
 
 
 def _problems(pattern, rate_hz, duty, jitter, max_rate_hz, relay_min_toggle_s) -> list[str]:
@@ -77,6 +120,7 @@ class Light:
         self.rate_hz, self.duty = float(cfg["rate_hz"]), float(cfg["duty"])
         self.jitter = float(cfg["jitter"])
         self.min_toggle_s = float(cfg["relay_min_toggle_s"])
+        self.max_rate_hz = float(cfg["max_rate_hz"])
         from gpiozero import DigitalOutputDevice
 
         self.pin, self.active_high = cfg["pin"], cfg["active_high"]
@@ -88,6 +132,7 @@ class Light:
         self._off_t = -1e9            # monotonic time of the last switch off
         self.flashes = 0
         self.first_on_t: float | None = None  # monotonic time start()'s pattern first lit the lamp
+        self.last_off_t: float | None = None  # monotonic time its last flash went off
 
     @staticmethod
     def check(cfg: dict) -> None:
@@ -121,46 +166,58 @@ class Light:
             self.out.off()
             self._off_t = time.monotonic()
 
-    def start(self) -> None:
-        """Start the configured pattern; it runs until on() or off() is called."""
-        self.first_on_t = None
-        self.flashes = 0
-        if self.pattern == "steady":
-            self.on()
-            self.flashes = 1
-            return
+    def start(self, deadline: float) -> None:
+        """Run the configured pattern as whole flashes until `deadline` (time.monotonic())."""
         self._stop_flashing()
+        self.first_on_t = self.last_off_t = None
+        self.flashes = 0
         seed = random.getrandbits(32)
-        info = f"{self.pattern} {self.rate_hz:g} Hz duty {self.duty:g}"
-        if self.pattern == "random":
-            info += f" jitter {self.jitter:g} seed {seed}"
-        print(f"[light] GPIO{self.pin} -> {info}", flush=True)
         self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._flash, args=(self._stop, random.Random(seed)),
+        self._thread = threading.Thread(target=self._flash,
+                                        args=(self._stop, deadline, random.Random(seed), seed),
                                         name="light", daemon=True)
         self._thread.start()
 
-    def _flash(self, stop: threading.Event, rng: random.Random) -> None:
-        if not self._hold_off(stop):
+    def _flash(self, stop: threading.Event, deadline: float, rng: random.Random,
+               seed: int) -> None:
+        if not self._hold_off(stop):  # the relay minimum after the last off (back-to-back)
             return
-        phases = ((True, self.duty / self.rate_hz), (False, (1 - self.duty) / self.rate_hz))
-        due = time.monotonic()  # when the current phase is due to start
-        while True:
-            for lamp, nominal in phases:
-                now = time.monotonic()
-                if now - due > LATE_TOLERANCE_S:
-                    due = now  # stalled: start over from now rather than catch up
-                with self._lock:
-                    if stop.is_set():
-                        return
-                    self._switch(lamp)
-                if lamp:
-                    self.flashes += 1
-                if self.pattern == "random":
-                    nominal *= rng.uniform(1 - self.jitter, 1 + self.jitter)
-                due += nominal
-                if stop.wait(max(0.0, due - time.monotonic())):
+        t0 = time.monotonic()
+        flashes = plan(self.pattern, self.rate_hz, self.duty, self.jitter, deadline - t0,
+                       self.max_rate_hz, self.min_toggle_s, rng)
+        n = len(flashes)
+        rate = "" if n < 2 else f" at {(n - 1) / flashes[-1][0]:.2f} Hz"
+        info = f"{self.pattern}, {n} flash(es){rate}, {deadline - t0:.2f} s"
+        if self.pattern == "random":
+            info += f", jitter {self.jitter:g} seed {seed}"
+        print(f"[light] GPIO{self.pin} -> {info}", flush=True)
+        for on_s, off_s in flashes:
+            on_t, off_t = t0 + on_s, t0 + off_s
+            if stop.wait(max(0.0, on_t - time.monotonic())):
+                return
+            with self._lock:
+                if stop.is_set():
                     return
+                if off_t - time.monotonic() < self.min_toggle_s - EPS:
+                    continue  # too late to give this flash a whole on-time: skip it
+                self._switch(True)
+            self.flashes += 1
+            stopped = stop.wait(max(0.0, off_t - time.monotonic()))
+            with self._lock:
+                self._switch(False)  # an off is never skipped, even when stopped
+                self.last_off_t = self._off_t
+            if stopped:
+                return
+        print(f"[light] GPIO{self.pin} -> {self.off_level} (off): {self.flashes} whole flash(es) "
+              "done", flush=True)
+
+    def finish(self, grace_s: float) -> None:
+        """At a scare's end: let the last flash go off on schedule (up to grace_s), then off()."""
+        if self._thread is not None:
+            self._thread.join(timeout=grace_s)
+            if not self._thread.is_alive():
+                self._thread = None
+        self.off()
 
     def _stop_flashing(self) -> None:
         if self._thread is None:
@@ -210,8 +267,9 @@ if __name__ == "__main__":
     try:
         light.on()
         time.sleep(2)
-        light.start()
-        time.sleep(3)
         light.off()
+        time.sleep(1)
+        light.start(time.monotonic() + 3.0)
+        light.finish(3.5)
     finally:
         light.close()

@@ -6,11 +6,12 @@ Camera → YOLO detection → controller → light, servos, sound. One Python pr
 scare/camera.py          Camera.read() -> RGB frame, Camera.select(i) switches camera
 scare/detector.py        Detector.detect(frame) -> [Detection(label, confidence, box)]
 scare/confirmation.py    a target must show up in confirm_frames frames in a row to count
-scare/light.py           Light.start() runs light.pattern, off() / on()   GPIO26 (pin 37) -> relay
+scare/light.py           Light.start(deadline): whole flashes to the end   GPIO26 (pin 37) -> relay
 scare/servos.py          Servos.up() / down() / set(angle)                GPIO19, hardware PWM
 scare/sound.py           Sound.next_clip() / play(clip) / stop()          3.5 mm jack
 scare/sound_library.py   which clips play, from scare/sounds/library.yaml
-scare/deterrent.py       one scare's light + sound: start, end on time, log it
+scare/sound_fill.py      makes each clip last the scare, ending at a pause
+scare/deterrent.py       one scare's light + sound: start and end together, log it
 scare/activation_log.py  one CSV row per scare (log.activations)
 scare/controller.py      main loop: cameras -> detector -> scare, cooldown
 scare/deter_test.py      run scares by hand, no camera (light + sound only)
@@ -83,5 +84,18 @@ angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`
 ## Sounds
 
 Clips come from the sound library in `scare/sounds/` (see `scare/sounds/SOURCE.md` for where they
-come from, their licenses and how to update them). Each scare plays the next clip of the generic
-set, alternating sound types.
+come from, their licenses and how to update them). Each scare plays a random clip of the generic
+set, never the one the scare before played.
+
+At startup `scare/sound_fill.py` renders each clip (into RAM, `/dev/shm`) to end at the pause
+nearest `controller.scare_seconds`, within `+/- controller.end_window_s`, so no bark or word is
+cut through; a short clip repeats, and a clip with no pause there (the sirens) fades out over
+`sound.end_fade_s`, ending at `scare_seconds`. With the generic set and 5 +/- 0.5 s, scares last
+4.76-5.34 s. Levels are unchanged. That length is the scare's: the light runs whole flashes (the
+first on at once, the last off exactly at the end, the period stretched slightly to fit, never
+past `light.max_rate_hz` or under the relay minimum), and the controller flaps the arms for it.
+Each CSV row records the scare's length (`scare_s`), the light's (`light_s`), and the clip's
+repeats and ending.
+
+The species sets (raccoon 12, groundhog 4, squirrel 4) are in the repo but not connected: only
+the generic set plays. `python -m scare.sound_library` checks every set.

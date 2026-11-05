@@ -23,7 +23,13 @@ BY 3.0/4.0, CC BY-SA 3.0/4.0, CC BY-NC 4.0, CC BY-NC-SA 4.0 and team-generated s
 clips are fine for this course project but not for commercial use.
 
 What plays: the controller plays the **generic** set (16 clips:
-human speech, shout, scream, dog bark, siren) in the library's round-robin order, from a random
-clip each run, one per scare. The raptor and woodchuck-alarm clips aren't in the generic set, so
-their WAVs were removed here (2026-11-04); they're still in scare-force-plan, and library.yaml and
-report.csv still list them.
+human speech, shout, scream, dog bark, siren), a random clip per scare (never the previous
+scare's), each rendered to the scare's length at startup (`scare/sound_fill.py`). The species
+sets are kept but not connected (species-specific sound is extra credit, undecided): raccoon 12
+clips, groundhog 4, squirrel 4, all already in the generic set.
+
+Changes from the copied library.yaml (scare-force-plan is retired, D-23, so these are made here):
+- the 4 raptor clips: WAVs removed 2026-11-04 (dead when Saagar tested them on the Pi); their
+  records stay, with `excluded_reason`, so the groundhog and squirrel sets are dog barks only;
+- the 3 woodchuck-alarm whistles: removed entirely 2026-11-05 (records, the `woodchuck_alarm`
+  type in the groundhog set, report.csv rows).

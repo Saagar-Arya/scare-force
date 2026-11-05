@@ -26,7 +26,7 @@ label_map:
 sets:
   generic:   [human_speech, human_shout, human_scream, dog_bark, siren]
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
-  groundhog: [raptor, dog_bark, woodchuck_alarm]   # woodchuck_alarm clips are flagged (off)
+  groundhog: [raptor, dog_bark]                    # woodchuck alarm whistles removed 2026-11-05
   squirrel:  [raptor, dog_bark]                    # no human sounds
 
 # What the cited studies used: sound_type -> SPL at 1 m, references, measurement conditions.
@@ -290,6 +290,7 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
+    excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
     notes: "Cooper's Hawk (Accipiter cooperii). xeno-canto XC794271; type: call, duet. Rock garden (near Tucson), Pima County, Arizona, United States, 2022-02-05 09:30. Four harsh 'scream' calls of an agitated pair (female leading), recorded from ~3 m with a phone. Very close and loud; faint Verdin in background between calls. Source file: 'XC794271 - Cooper's Hawk - Accipiter cooperii.wav'."
   - id: raptor_red_shouldered_hawk_01
     sound_type: raptor
@@ -303,6 +304,7 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
+    excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
     notes: "Red-shouldered Hawk (Buteo lineatus). xeno-canto XC712976; type: call. Fort Drum Marsh, Indian River County, Florida, United States, 2022-03-05 07:27. Series of 7 loud 'kee-ah' calls from a perched bird at the edge of a swamp. Very loud/close; the decoded MP3 peaks above 0 dBFS, so 102 samples (0.02%) sit at full scale in the 16-bit FLAC (minor clipping, likely already present in the source). Source file: 'XC712976 - Red-shouldered Hawk - Buteo lineatus.mp3'."
   - id: raptor_red_tailed_hawk_01
     sound_type: raptor
@@ -316,6 +318,7 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
+    excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC914680; type: call, flight call. Gerlach, Washoe County, Nevada, United States, 2024-06-14 05:30. Single classic descending 'keee-arr' scream (one of two in the source; the second is at ~8.6 s). Bird in flight ~20 m away per recordist. Clean, high SNR, no background species. Source file: 'XC914680 - Red-tailed Hawk - Buteo jamaicensis.mp3'."
   - id: raptor_red_tailed_hawk_02
     sound_type: raptor
@@ -329,45 +332,5 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
+    excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC973864; type: call. San Bernardino National Wildlife Refuge, Cochise County, Arizona, United States, 2023-12-05 10:24. Single scream given on take-off (~0.6-2.0 s), rest of the clip is quiet ambience. Parabolic mic, 24-bit WAV source, very clean. Recordist notes the call is 'different from recorded earlier'. Source file: 'XC973864 - Red-tailed Hawk - Buteo jamaicensis.wav'."
-
-  # ---- woodchuck_alarm ----
-  - id: woodchuck_alarm_ohio_whistle_03
-    sound_type: woodchuck_alarm
-    original: originals/woodchuck_alarm/woodchuck_alarm_ohio_whistle_03.flac
-    source_url: "https://www.inaturalist.org/observations/156714680"
-    media_url: "https://static.inaturalist.org/sounds/656808.wav?1682506220"
-    author: "William Hull (iNaturalist user mangoverde)"
-    license: "CC BY-NC 4.0"
-    license_url: "https://creativecommons.org/licenses/by-nc/4.0/"
-    excerpt: {start_s: 2.099, end_s: 4.099}
-    evidence: [53]
-    basis: "vigilance only; recruitment risk; team call pending"
-    flagged: true
-    notes: "Groundhog (Marmota monax) alarm whistle, Ohio, April 2023. Research Grade (3 IDs agree); observer annotated whistles at 2, 38.5, 78.5 and 130 s. Excerpt holds the first whistle (~3.2-3.5 kHz, ~0.2 s) starting 0.15 s in; birdsong in the background. Lossless source. Non-commercial license (fine for student project)."
-  - id: woodchuck_alarm_vt_whistle_02
-    sound_type: woodchuck_alarm
-    original: originals/woodchuck_alarm/woodchuck_alarm_vt_whistle_02.flac
-    source_url: "https://www.inaturalist.org/observations/169572746"
-    media_url: "https://static.inaturalist.org/sounds/751895.m4a?1687783250"
-    author: "Kent P. McFarland (iNaturalist user kpmcfarland)"
-    license: "CC0 1.0"
-    license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
-    excerpt: {start_s: 3.7, end_s: 5.7}
-    evidence: [53]
-    basis: "vigilance only; recruitment risk; team call pending"
-    flagged: true
-    notes: "Groundhog (Marmota monax) alarm whistle, Woodstock, VT, 2023-05-29. Research Grade (2 IDs agree). Loud whistle (~3.6-3.8 kHz) at ~0.15 s, followed by ~0.8 s of lower chatter/tail (~1.7-2.7 kHz). Some broadband background. A second whistle at ~25.6 s in the source. Lossy source."
-  - id: woodchuck_alarm_wv_whistle_01
-    sound_type: woodchuck_alarm
-    original: originals/woodchuck_alarm/woodchuck_alarm_wv_whistle_01.flac
-    source_url: "https://www.inaturalist.org/observations/47450515"
-    media_url: "https://static.inaturalist.org/sounds/96927.m4a?1590531416"
-    author: "William Harmon (iNaturalist user stellarlimpkin)"
-    license: "CC BY 4.0"
-    license_url: "https://creativecommons.org/licenses/by/4.0/"
-    excerpt: {start_s: 16.55, end_s: 18.55}
-    evidence: [53]
-    basis: "vigilance only; recruitment risk; team call pending"
-    flagged: true
-    notes: "Groundhog (Marmota monax) alarm whistle, Gilmer County, WV, 2020-05-26. Research Grade observation (3 IDs agree). Single sharp high whistle (~3-3.8 kHz, ~0.15 s) at 0.15 s into the clip, followed by a faint lower tail; very clean background. Same animal whistles again at ~33.5 s and ~52.9 s in the source. Sound license 'CC BY' per iNat sound record; page shows CC BY 4.0. Lossy source."
