@@ -1,9 +1,9 @@
 """Sound through the 3.5 mm jack. play(clip) starts a clip in the background and returns at once.
 
 Clips are the sound library's generic set (sound.library in config.yaml, see
-scare/sound_library.py), in the library's order, which alternates sound types. next_clip()
-starts at a random clip each run (a restart doesn't replay the same opening clips), advances one
-clip per scare and wraps.
+scare/sound_library.py). next_clip() picks one at random for each scare, never the clip the
+previous scare played: with 16 clips, each pick is uniform over the other 15. (Only the last
+clip is left out, not a shuffled cycle: a clip can come back two scares later.)
 
 Every clip is rendered at startup (scare/sound_fill.py) to end at a pause near the scare length
 (controller.scare_seconds, +/- controller.end_window_s), repeating it if it is shorter, or to
@@ -64,7 +64,7 @@ class Sound:
         self.renders = self._render(library.profile, float(window_s), float(cfg["end_fade_s"]))
         setpriv = shutil.which("setpriv")
         self._wrap = [setpriv, "--pdeathsig", "TERM"] if setpriv else []
-        self._next = random.randrange(len(self.clips))  # index of the next clip in the rotation
+        self._last: Path | None = None  # the clip the previous scare played
         self.proc: subprocess.Popen | None = None
         self.current: Path | None = None
         self.started_t: float | None = None   # monotonic: aplay process started
@@ -103,9 +103,9 @@ class Sound:
 
     def next_clip(self) -> Path:
         """The clip the next scare should play."""
-        i = self._next
-        self._next = (i + 1) % len(self.clips)
-        return self.clips[i]
+        choices = [c for c in self.clips if c != self._last] or self.clips
+        self._last = random.choice(choices)
+        return self._last
 
     def play(self, clip: Path | int) -> None:
         """Play a clip (a path, or an index into self.clips), cutting off whatever is playing now."""

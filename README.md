@@ -84,8 +84,8 @@ angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`
 ## Sounds
 
 Clips come from the sound library in `scare/sounds/` (see `scare/sounds/SOURCE.md` for where they
-come from, their licenses and how to update them). Each scare plays the next clip of the generic
-set, alternating sound types.
+come from, their licenses and how to update them). Each scare plays a random clip of the generic
+set, never the one the scare before played.
 
 At startup `scare/sound_fill.py` renders each clip (into RAM, `/dev/shm`) to end at the pause
 nearest `controller.scare_seconds`, within `+/- controller.end_window_s`, so no bark or word is

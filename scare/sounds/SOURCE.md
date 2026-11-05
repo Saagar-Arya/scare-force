@@ -10,7 +10,7 @@ cut down to the generic set this repo plays; the species sets and levels live in
 |---|---|
 | `library.yaml` | The manifest. Every clip's id, sound type, source page, downloaded file, author, **license**, excerpt, evidence and notes. It's also the attribution the CC BY / BY-SA / BY-NC licenses require |
 | `profiles/pyle_plmr52.yaml` | The speaker profile the clips were built for (Pyle PLMR52) |
-| `build/pyle_plmr52/*.wav` | The playable clips (23: the generic set's 16, plus the 4 raptor and 3 woodchuck-alarm clips only the species sets use): loudness-matched, trimmed, padded |
+| `build/pyle_plmr52/*.wav` | The playable clips (16, the generic set): loudness-matched, trimmed, padded |
 | `build/pyle_plmr52/report.csv` | The build's per-clip measurements (LUFS, true peak, onset, ...) and pass/fail |
 
 **Don't edit the clips here.** The source audio (`originals/`) and the build script
@@ -23,10 +23,13 @@ BY 3.0/4.0, CC BY-SA 3.0/4.0, CC BY-NC 4.0, CC BY-NC-SA 4.0 and team-generated s
 clips are fine for this course project but not for commercial use.
 
 What plays: the controller plays the **generic** set (16 clips:
-human speech, shout, scream, dog bark, siren) in the library's round-robin order, from a random
-clip each run, one per scare, each rendered to the scare's length at startup
-(`scare/sound_fill.py`). The species sets (raccoon 12, groundhog 8, squirrel 8) are kept here
-with their clips, but not connected: species-specific sound is extra credit and undecided. The
-raptor and woodchuck-alarm WAVs were removed on 2026-11-04 and restored on 2026-11-05 for that
-reason (byte-identical to the copies in commit 859b2ab^). The woodchuck-alarm clips are
-`flagged`, so even the groundhog set leaves them out.
+human speech, shout, scream, dog bark, siren), a random clip per scare (never the previous
+scare's), each rendered to the scare's length at startup (`scare/sound_fill.py`). The species
+sets are kept but not connected (species-specific sound is extra credit, undecided): raccoon 12
+clips, groundhog 4, squirrel 4, all already in the generic set.
+
+Changes from the copied library.yaml (scare-force-plan is retired, D-23, so these are made here):
+- the 4 raptor clips: WAVs removed 2026-11-04 (dead when Saagar tested them on the Pi); their
+  records stay, with `excluded_reason`, so the groundhog and squirrel sets are dog barks only;
+- the 3 woodchuck-alarm whistles: removed entirely 2026-11-05 (records, the `woodchuck_alarm`
+  type in the groundhog set, report.csv rows).
