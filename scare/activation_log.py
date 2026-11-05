@@ -2,20 +2,23 @@
 config.yaml; null = no file, terminal output only). scare/deterrent.py fills it in.
 
 Columns:
-    start, end                 local ISO 8601 times, to the millisecond; end = light off (and
-                               aplay told to stop), not when the row was written
+    start, end                 local ISO 8601 times, to the millisecond; end = when the light and
+                               arms stopped (the scare's end), not when the row was written
     end_reason                 timeout | shutdown (Ctrl+C, SIGTERM, an error)
     trigger_source             detection (scare.controller) | manual (scare.deter_test)
     label, confidence, camera  the detection that fired it (empty for manual)
-    light_pattern, flashes     steady | strobe | random | off (no light); times the lamp came on
+    scare_s                    the scare's planned length: its sound's render (light and arms
+                               end with it), about controller.scare_seconds
+    light_pattern, flashes     steady | strobe | random | off (no light); whole flashes shown
+    light_s                    first flash on -> last flash off (should equal scare_s)
+    motion_drop, motion_moves  latch | servo | off (no arms); wave moves after the drop
     clip_id, sound_type        empty with no sound
     aplay_rc                   aplay's exit code (0 also when stopped: aplay exits 0 on SIGTERM)
-    sound_s, sound_stopped     seconds aplay ran; 1 if the scare's end stopped it (normal: the
-                               render is exactly the scare long, so it is stopped in its silence)
-    sound_audible_s            where the sound itself ends in the render (<= the scare length)
+    sound_s, sound_stopped     seconds aplay ran; 1 if it was cut short (normally 0: it plays out)
     sound_plays, sound_ending  times the clip started in the render; break (ended at a pause)
                                | fade (faded out)
     trigger_to_relay_on_ms     trigger -> GPIO driven on for the first time
+    trigger_to_motion_ms       trigger -> the drop began (latch pulled, or servo commanded)
     trigger_to_aplay_start_ms  trigger -> aplay process started (not the first sample out)
 The header is written when the file is new or empty. A file with a different header (an older
 version's) is renamed aside to <name>.<its mtime>.csv first. Each row is flushed and fsynced.
@@ -28,9 +31,10 @@ import time
 from pathlib import Path
 
 FIELDS = ("start", "end", "end_reason", "trigger_source", "label", "confidence", "camera",
-          "light_pattern", "flashes", "clip_id", "sound_type", "aplay_rc", "sound_s",
-          "sound_stopped", "sound_audible_s", "sound_plays", "sound_ending",
-          "trigger_to_relay_on_ms", "trigger_to_aplay_start_ms")
+          "scare_s", "light_pattern", "flashes", "light_s", "motion_drop", "motion_moves",
+          "clip_id", "sound_type", "aplay_rc", "sound_s", "sound_stopped", "sound_plays",
+          "sound_ending", "trigger_to_relay_on_ms", "trigger_to_motion_ms",
+          "trigger_to_aplay_start_ms")
 
 
 class ActivationLog:

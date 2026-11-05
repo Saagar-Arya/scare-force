@@ -2,15 +2,18 @@
 
 With several cameras (camera.ids) only one streams at a time, so the loop watches each for
 camera.dwell_seconds, then switches to the next. A matching detection on any of them starts a scare:
-the next clip from the sound library, servos flapping up/down and the
-light on (light.pattern: steady, strobe or random). After scare_seconds everything stops, then
-nothing fires again until cooldown_seconds have passed.
+the next clip from the sound library, the arms dropping then waving (scare/motion.py) and the
+light's pattern (light.pattern: steady, strobe or random). All three start together and end
+together after about scare_seconds (that scare's sound sets the exact end, see
+scare/deterrent.py); the arms reset in the cooldown, and nothing fires again until
+cooldown_seconds after the end.
 Detection and switching keep running the whole time. A single four-class model handles each frame.
 Only animal labels can trigger; person predictions never veto an animal.
 Confirmation histories are scoped to each camera.
-Light and sound start and stop through scare/deterrent.py (shared with scare.deter_test), which
-logs one line and one CSV row per scare. Light settings are checked before the cameras open.
-Ctrl+C, SIGTERM, SIGHUP, q / Esc or an error: the lamp is left off, aplay stopped, GPIO released.
+Light, sound and arms start and stop through scare/deterrent.py (shared with scare.deter_test),
+which logs one line and one CSV row per scare. Light settings are checked before the cameras open.
+Ctrl+C, SIGTERM, SIGHUP, q / Esc or an error: the lamp is left off, aplay stopped, the arms at
+rest with PWM off, GPIO released.
 
 Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C stops)
      python -m scare.controller --headless   (no window)
@@ -26,6 +29,7 @@ from .confirmation import TargetConfirmer
 from .detector import Detector
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
 from .light import Light
+from .motion import Motion
 from .servos import Servos
 from .sound import Sound
 
@@ -83,26 +87,28 @@ def main() -> None:
         confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                       rules["confirmation_gap_seconds"]) for _ in camera.ids]
         deterrent.light = Light(cfg["light"])
-        sound = deterrent.sound = Sound(cfg["sound"], ROOT, rules["scare_seconds"])
+        sound = deterrent.sound = Sound(cfg["sound"], ROOT, rules["scare_seconds"],
+                                        rules["end_window_s"])
         sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
         servos = Servos(cfg["servos"])
+        deterrent.motion = Motion(servos, cfg["motion"])  # arms to rest
         run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos)
     except (KeyboardInterrupt, Shutdown) as e:
         print(f"\n[controller] stopping ({str(e) or 'Ctrl+C'})", flush=True)
     finally:
         ignore_signals()  # a second Ctrl+C / SIGTERM mustn't cut the cleanup short
         try:
-            deterrent.close()  # ends a running scare as shutdown: lamp off, aplay stopped, pin freed
+            deterrent.close()  # ends a running scare as shutdown: lamp off, aplay stopped, arms at
+                               # rest with PWM off, pins freed
         finally:
-            if servos is not None:
-                servos.ramp(servos.down_angle, rules["return_deg_per_s"])
-                time.sleep(0.5)
-                servos.close()
+            if servos is not None and deterrent.motion is None:
+                servos.close()  # Motion never took them over
             if camera is not None:
                 camera.close()
             if not args.headless:
                 display.close()
-        print("[controller] stopped: lamp off, aplay stopped, GPIO released", flush=True)
+        print("[controller] stopped: lamp off, aplay stopped, arms at rest, GPIO released",
+              flush=True)
 
 
 def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos) -> None:
@@ -113,8 +119,6 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
     c = cfg["camera"]
     scare_until = 0.0     # scare is running while now < scare_until
     quiet_until = 0.0     # no new scare before this
-    next_flap = 0.0
-    servo_up = False
     last_frame_t = time.monotonic()
     fps = 0.0
     next_switch = last_frame_t + c["dwell_seconds"]
@@ -125,7 +129,6 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
           + ", ".join(f"{k} {v}" for k, v in thresholds.items())
           + f", {rules['confirm_frames']} frame(s) to confirm", flush=True)
 
-    servos.down()
     while True:
         switch_t = None
         if len(camera.ids) > 1 and time.monotonic() >= next_switch:
@@ -150,12 +153,12 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
             best = hits[0]
             print(f"[controller] SCARE: {camera.names[camera.current]} {best.label} "
                   f"{best.confidence:.2f} at {best.box}", flush=True)
-            scare_until = now + rules["scare_seconds"]
+            # light, arms and the library's next clip, all ending when that clip's render does
+            length = deterrent.start(now, "detection", rules["scare_seconds"], label=best.label,
+                                     confidence=best.confidence,
+                                     camera=camera.ids[camera.current])
+            scare_until = now + length
             quiet_until = scare_until + rules["cooldown_seconds"]
-            next_flap = now
-            # light.pattern (steady, strobe or random), then the library's next clip
-            deterrent.start(now, "detection", rules["scare_seconds"], label=best.label,
-                            confidence=best.confidence, camera=camera.ids[camera.current])
             note = None
         elif hits:
             note = (f"{hits[0].label} {hits[0].confidence:.2f} ignored: " +
@@ -168,17 +171,10 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
             print(f"[controller] {camera.names[camera.current]}: {note}", flush=True)
             next_note = now + 1.0
 
-        if scare_until and now < scare_until:
-            if now >= next_flap:
-                servo_up = not servo_up
-                servos.up() if servo_up else servos.down()
-                next_flap = now + rules["flap_seconds"]
-        elif scare_until:
+        if scare_until and now >= scare_until:
             print("[controller] scare over", flush=True)
             scare_until = 0.0
-            deterrent.end("timeout")  # light off, aplay stopped, logged
-            servos.ramp(servos.down_angle, rules["return_deg_per_s"])
-            servo_up = False
+            deterrent.end("timeout")  # the timer already stopped all three; this logs it
 
         fps = 0.9 * fps + 0.1 / max(now - last_frame_t, 1e-6)
         last_frame_t = now
@@ -194,7 +190,7 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                 ("sound", sound.current.name if sound.is_playing() else "off",
                  sound.is_playing()),
                 ("light", "ON" if scare_until else "off", bool(scare_until)),
-                ("servo", "off" if angle is None else f"{angle:.0f} deg", servo_up),
+                ("servo", "off" if angle is None else f"{angle:.0f} deg", bool(scare_until)),
                 ("state", state, bool(scare_until)),
             ]
             views = []

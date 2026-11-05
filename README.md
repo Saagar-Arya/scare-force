@@ -6,15 +6,16 @@ Camera → YOLO detection → controller → light, servos, sound. One Python pr
 scare/camera.py          Camera.read() -> RGB frame, Camera.select(i) switches camera
 scare/detector.py        Detector.detect(frame) -> [Detection(label, confidence, box)]
 scare/confirmation.py    a target must show up in confirm_frames frames in a row to count
-scare/light.py           Light.start() runs light.pattern, off() / on()   GPIO26 (pin 37) -> relay
-scare/servos.py          Servos.up() / down() / set(angle)                GPIO19, hardware PWM
+scare/light.py           Light.start(deadline): whole flashes to the end   GPIO26 (pin 37) -> relay
+scare/servos.py          Servos.set(angle) / ramp(angle) / close()        GPIO19, hardware PWM
+scare/motion.py          the arms' scare: drop, wave to the end, reset in the cooldown
 scare/sound.py           Sound.next_clip() / play(clip) / stop()          3.5 mm jack
 scare/sound_library.py   which clips play, from scare/sounds/library.yaml
 scare/sound_fill.py      makes each clip last the whole scare, ending at a pause
-scare/deterrent.py       one scare's light + sound: start, end on time, log it
+scare/deterrent.py       one scare: light, sound and arms start and end together; log it
 scare/activation_log.py  one CSV row per scare (log.activations)
 scare/controller.py      main loop: cameras -> detector -> scare, cooldown
-scare/deter_test.py      run scares by hand, no camera (light + sound only)
+scare/deter_test.py      run scares by hand, no camera (light, sound, arms)
 scare/display.py         debug window: cameras side by side, boxes, status bar
 config.yaml              every setting: cameras, model, thresholds, pins, light, servos, sound, log
 ```
@@ -61,17 +62,17 @@ Test each part on its own, from this folder:
 .venv/bin/python -m scare.camera      # saves camera_test_<n>.jpg from every camera
 .venv/bin/python -m scare.detector    # one frame (or pass an image path), prints detections
 .venv/bin/python -m scare.light       # on 2 s, then light.pattern 3 s, off
-.venv/bin/python -m scare.servos      # up, down, release
+.venv/bin/python -m scare.servos      # motion.up_angle, motion.down_angle, release
 .venv/bin/python -m scare.servos sweep  # both servos 0-270-0, twice
 .venv/bin/python -m scare.servos mid    # centre (135), then slow sweep +/-60 around it (or pass deg)
 .venv/bin/python -m scare.sound       # plays every clip
-.venv/bin/python -m scare.deter_test  # one scare by hand (light + sound); --help for options
+.venv/bin/python -m scare.deter_test  # one scare by hand (light, sound, arms); --help for options
 ```
 
 Everything together. A raccoon, groundhog or squirrel (`models/scare_four_320.onnx`, above
 `controller.min_confidence` for `controller.confirm_frames` frames in a row) starts a scare: the
-next clip, the servos flapping and the light pattern, for `scare_seconds`, then `cooldown_seconds`
-of quiet. The window shows every camera side by side (the ones not streaming right now dimmed, with
+next clip, the arms dropping then waving, and the light pattern, then `cooldown_seconds` of quiet
+(see "One scare" below). The window shows every camera side by side (the ones not streaming right now dimmed, with
 the age of their last frame), draws every box (red = trigger) and a status bar: sound, light, servo
 angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`.
 
@@ -86,12 +87,28 @@ Clips come from the sound library in `scare/sounds/` (see `scare/sounds/SOURCE.m
 come from, their licenses and how to update them). Each scare plays the next clip of the generic
 set, alternating sound types.
 
-Every clip lasts the whole scare, like the light and the arms: at startup `scare/sound_fill.py`
-renders each one to exactly `controller.scare_seconds` (into RAM, `/dev/shm`). A short clip
-repeats; the sound ends at a pause in its last `sound.end_search_s` (1 s) so no bark or word is
-cut through, or, with no pause there (the sirens), fades out over `sound.end_fade_s`, ending on
-time. Levels are unchanged. Each scare's CSV row records where its sound ended
-(`sound_audible_s`), how many times the clip started and how it ended.
+At startup `scare/sound_fill.py` renders each clip (into RAM, `/dev/shm`) to end at the pause
+nearest `controller.scare_seconds`, within `+/- controller.end_window_s`, so no bark or word is
+cut through; a short clip repeats, and a clip with no pause there (the sirens) fades out over
+`sound.end_fade_s`, ending at `scare_seconds`. With the generic set and 5 +/- 0.5 s, scares last
+4.76-5.34 s. Levels are unchanged.
+
+## One scare
+
+An outside viewer should see light, sound and arms start together and stop together. The sound
+sets the end (`scare/deterrent.py`): the scare lasts its clip's render, and
+
+- light: whole flashes only. The first comes on at once, the last goes off exactly at the end;
+  the period is stretched or shrunk slightly to fit (2 Hz over 4.76 s: 10 flashes), never past
+  `light.max_rate_hz` or under the relay minimum.
+- sound: the render plays out and ends at its pause (aplay starts a few ms after the light).
+- arms (`scare/motion.py`): the drop (latch release, or a servo move while no latch is fitted),
+  then waving between `motion.up_angle` and `motion.down_angle`, the move time stretched so the
+  last move lands on the end. The arms then hold still for `motion.reset_delay_s` and ease back
+  to `motion.rest_angle` (T-pose) in the cooldown: the reset is not part of the scare.
+
+Every CSV row records the scare's length (`scare_s`), the light's (`light_s`, first on to last
+off), the arms' drop and moves, and the sound's clip, repeats and ending.
 
 The species sets (raccoon, groundhog, squirrel) and their clips are in the repo too, but not
 connected: only the generic set plays. `python -m scare.sound_library` checks every set.

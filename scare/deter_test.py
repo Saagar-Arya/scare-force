@@ -1,17 +1,19 @@
-"""Direct trigger: run scares with no camera or detector, through the same Light, Sound and
-Deterrent code scare.controller uses (scare/deterrent.py), logged to the same CSV
-(log.activations) with trigger_source=manual. No servos.
+"""Direct trigger: run scares with no camera or detector, through the same Light, Sound, Motion
+and Deterrent code scare.controller uses (scare/deterrent.py), logged to the same CSV
+(log.activations) with trigger_source=manual.
 
     python -m scare.deter_test                       # one scare, config.yaml's pattern and clip
     python -m scare.deter_test --pattern steady      # steady | strobe | random (overrides config)
-    python -m scare.deter_test --no-light            # sound only (or --no-sound: light only)
+    python -m scare.deter_test --no-light            # leave out the light (also --no-sound,
+                                                     # --no-motion)
     python -m scare.deter_test --scares 20 --gap 1   # 20 scares, 1 s apart
-    python -m scare.deter_test --seconds 10          # each scare 10 s (default scare_seconds)
+    python -m scare.deter_test --seconds 10          # target 10 s (default scare_seconds)
 
-Each scare lasts controller.scare_seconds and ends as timeout. Ctrl+C, SIGTERM or SIGHUP ends a
+Each scare lasts about controller.scare_seconds (its sound sets the exact end; light and arms
+end with it) and ends as timeout; the arms reset during --gap. Ctrl+C, SIGTERM or SIGHUP ends a
 running scare as shutdown and leaves the lamp off, aplay stopped and the pin released.
 Light settings are checked first, as in the controller. Refuses to run while scare.controller
-is running (both would drive GPIO26 and the jack). The relay board is powered through the
+is running (both would drive GPIO26, the servos and the jack). The relay board is powered through the
 deterrent off switch: with that switch OFF the lamp stays dark (the CSV still logs the scare).
 """
 
@@ -23,7 +25,9 @@ from . import ROOT, load_config
 from .activation_log import ActivationLog
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
 from .light import PATTERNS, Light
-from .sound import Sound
+from .motion import Motion
+from .servos import Servos
+from .sound import Sound, prime
 
 
 def controller_pids() -> list[str]:
@@ -47,6 +51,7 @@ def main() -> None:
     ap.add_argument("--pattern", choices=PATTERNS, help="light pattern (default: config's)")
     ap.add_argument("--no-light", action="store_true", help="leave the light out")
     ap.add_argument("--no-sound", action="store_true", help="leave the sound out")
+    ap.add_argument("--no-motion", action="store_true", help="leave the arms out")
     ap.add_argument("--scares", type=int, default=1, metavar="N", help="how many (default 1)")
     ap.add_argument("--gap", type=float, default=2.0, metavar="S",
                     help="seconds between one scare's end and the next one's start (default 2)")
@@ -71,10 +76,15 @@ def main() -> None:
             deterrent.log = ActivationLog(ROOT / log_path)
         if not args.no_light:
             deterrent.light = Light(light_cfg)
+        rules = cfg["controller"]
         if not args.no_sound:
-            deterrent.sound = Sound(cfg["sound"], ROOT, seconds)
+            deterrent.sound = Sound(cfg["sound"], ROOT, seconds, rules["end_window_s"])
+        if not args.no_motion:
+            prime(cfg["sound"]["device"])  # the PWM clock switch, before Servos reads it
+            deterrent.motion = Motion(Servos(cfg["servos"]), cfg["motion"])
         what = " + ".join(x for x, on in (
-            (f"light {light_cfg['pattern']}", deterrent.light), ("sound", deterrent.sound)) if on)
+            (f"light {light_cfg['pattern']}", deterrent.light), ("sound", deterrent.sound),
+            ("arms", deterrent.motion)) if on)
         print(f"[deter_test] {args.scares} scare(s) of {seconds:g} s, {args.gap:g} s apart: "
               f"{what or 'nothing (--no-light --no-sound): log only'}", flush=True)
         for i in range(args.scares):
@@ -82,15 +92,16 @@ def main() -> None:
                 time.sleep(args.gap)
             print(f"[deter_test] scare {i + 1}/{args.scares}", flush=True)
             trigger_t = time.monotonic()
-            deterrent.start(trigger_t, "manual", seconds)
-            time.sleep(max(0.0, trigger_t + seconds - time.monotonic()))
+            length = deterrent.start(trigger_t, "manual", seconds)
+            time.sleep(max(0.0, trigger_t + length - time.monotonic()) + 0.1)  # timer ends it
             deterrent.end("timeout")
     except (KeyboardInterrupt, Shutdown) as e:
         print(f"\n[deter_test] stopping ({str(e) or 'Ctrl+C'})", flush=True)
     finally:
         ignore_signals()
         deterrent.close()
-        print("[deter_test] stopped: lamp off, aplay stopped, GPIO released", flush=True)
+        print("[deter_test] stopped: lamp off, aplay stopped, arms at rest, GPIO released",
+              flush=True)
 
 
 if __name__ == "__main__":

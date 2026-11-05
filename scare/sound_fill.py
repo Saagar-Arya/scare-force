@@ -1,30 +1,32 @@
-"""Make a clip last exactly one scare, ending at a natural break instead of mid-sound.
+"""Make a clip last one scare, ending at a natural break near the scare's length.
 
-    r = render(samples, rate, seconds=5.0, search_s=1.0, fade_s=0.5)
-    r.samples    exactly round(seconds * rate) frames: the clip (repeated if it is shorter than
-                 the scare), ended cleanly, then silence to the end
-    r.audible_s  where the sound itself ends (<= seconds)
+    r = render(samples, rate, seconds=5.0, window_s=0.5, fade_s=0.5)
+    r.samples    the clip (repeated if it is shorter than the scare), ended cleanly; exactly
+                 r.audible_s long, so aplay finishes by itself when the sound does
+    r.audible_s  the scare's length for this clip, in [seconds - window_s, seconds + window_s]
     r.plays      how many times the clip starts (1 when it covers the scare by itself)
     r.ending     "break" (stopped in a quiet moment) or "fade" (faded out)
+
+The sound decides when a scare ends: scare.deterrent ends the light and the arms at the same
+moment, so all three start and stop together.
 
 A gap is a stretch at least MIN_GAP_S long whose 10 ms envelope is GAP_DB below the clip's loud
 level (its 95th-percentile envelope): the pause between barks, words, calls or siren yelps.
 
-Repeats: a clip shorter than (seconds - search_s) plays again straight after itself. A clip
+Repeats: a clip shorter than (seconds - window_s) plays again straight after itself. A clip
 that ends quietly repeats whole, keeping its own rhythm. A clip the build cut off mid-sound is
 repeated only up to its last gap in its second half (if it has one), so the join falls in a
 pause. Each copy starts abruptly, as the build made it; the copy before fades out over 10 ms
 (50 ms if it ends loud, i.e. a clip with no usable gap).
 
-How it ends, in order of preference:
-  1. break: the last quiet moment in the final search_s (a gap, or a copy's quiet end). The
-     sound stops there with a 10 ms fade, so no bark, word or shout is cut through.
-  2. fade: no quiet moment there but a copy ends loud in that window (a clip cut mid-sound by the
-     build): fade that copy out over fade_s, ending where it ends.
+Where it ends, in order of preference, always within seconds +/- window_s:
+  1. break: the quiet moment (a gap, or a copy's quiet end) nearest to `seconds`. The sound
+     stops there with a 10 ms fade, so no bark, word or shout is cut through.
+  2. fade: no quiet moment, but a copy ends loud in the window (a clip the build cut
+     mid-sound): fade that copy out over fade_s, ending where it ends.
   3. fade: neither (the continuous sirens, a bark over street noise): fade out over fade_s,
      ending exactly at `seconds`.
-So the audible part ends 0..search_s before the light and the arms stop; search_s = 0 always
-fades out exactly on time.
+window_s = 0 always ends exactly at `seconds` (a fade unless a pause falls right there).
 
 Levels are unchanged (no gain, only fades towards silence), so every clip still plays at the
 library's reference level (D-21, TR4 Test 4).
@@ -111,21 +113,21 @@ def _fade_out(x: np.ndarray, end: int, frames: int) -> None:
     x[end - frames:end] *= ramp
 
 
-def render(samples: np.ndarray, rate: int, seconds: float, search_s: float = 1.0,
+def render(samples: np.ndarray, rate: int, seconds: float, window_s: float = 0.5,
            fade_s: float = 0.5) -> Rendered:
     if seconds <= 0:
         raise ValueError("seconds must be > 0")
-    if search_s < 0 or fade_s <= 0:
-        raise ValueError("search_s must be >= 0 and fade_s > 0")
-    total = round(seconds * rate)
-    window = total - round(search_s * rate)  # the ending may fall in [window, total]
+    if not 0 <= window_s < seconds or fade_s <= 0:
+        raise ValueError("window_s must be in [0, seconds) and fade_s > 0")
+    target = round(seconds * rate)
+    lo, hi = target - round(window_s * rate), target + round(window_s * rate)
     click = max(1, round(CLICK_FADE_S * rate))
     src = samples.astype(np.float64)
     clip_gaps = gaps(samples, rate)
     hop = max(1, round(HOP_S * rate))
 
     # 1. What one copy is, if the clip has to repeat.
-    repeat = len(src) < window
+    repeat = len(src) < lo
     body = len(src)
     quiet_end = bool(clip_gaps) and clip_gaps[-1][1] >= len(src) - hop  # ends in a pause
     if repeat and not quiet_end:
@@ -134,33 +136,34 @@ def render(samples: np.ndarray, rate: int, seconds: float, search_s: float = 1.0
             body, quiet_end = tail[-1][0] + click, True
     join_fade = click if quiet_end else round(JOIN_FADE_S * rate)
 
-    # 2. Lay copies end to end until the scare is covered (one copy if it already is).
-    out = np.zeros((total,) + src.shape[1:], dtype=np.float64)
+    # 2. Lay copies end to end up to the window's far edge (one copy if it already covers it).
+    out = np.zeros((hi,) + src.shape[1:], dtype=np.float64)
     copies, pos = [], 0  # (start, frames)
-    while pos < total and (repeat or not copies):
-        n = min(body, total - pos)
+    while pos < hi and (repeat or not copies):
+        n = min(body, hi - pos)
         seg = src[:n].copy()
-        if repeat and pos + n < total:  # a join
+        if repeat and pos + n < hi:  # a join
             _fade_out(seg, n, join_fade)
         out[pos:pos + n] = seg
         copies.append((pos, n))
         pos += n
 
-    # 3. Where to stop.
+    # 3. Where to stop: the candidate nearest `seconds`.
     quiet = [s + a + click for s, n in copies for a, _ in clip_gaps if a < n]
     ends = [s + n for s, n in copies if n == body]  # copies that play to their end
     if quiet_end:
         quiet += ends
-    quiet = [q for q in quiet if window <= q <= total]
-    loud_ends = [e for e in ends if window <= e <= total] if not quiet_end else []
+    quiet = [q for q in quiet if lo <= q <= hi]
+    loud_ends = [e for e in ends if lo <= e <= hi] if not quiet_end else []
+    nearest = lambda xs: min(xs, key=lambda x: (abs(x - target), x))
     if quiet:
-        cut, fade, ending = max(quiet), click, "break"
+        cut, fade, ending = nearest(quiet), click, "break"
     elif loud_ends:
-        cut, fade, ending = max(loud_ends), round(fade_s * rate), "fade"
+        cut, fade, ending = nearest(loud_ends), round(fade_s * rate), "fade"
     else:
-        cut, fade, ending = min(total, pos), round(fade_s * rate), "fade"
+        cut, fade, ending = min(target, pos), round(fade_s * rate), "fade"
+    out = out[:cut]
     _fade_out(out, cut, fade)
-    out[cut:] = 0
     plays = sum(1 for s, _ in copies if s < cut - click)
     pcm = np.clip(np.round(out), -32768, 32767).astype(np.int16)
     return Rendered(pcm, rate, cut / rate, plays, ending)

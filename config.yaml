@@ -52,10 +52,33 @@ servos:
   min_us: 500
   max_us: 2500
   range_deg: 270
-  up_angle: 180             # TODO: tune on the hardware (centre +/- 45 for now)
-  down_angle: 90
   channels:
     both: {chip: 0, channel: 1, pin: 19}   # both servo signal wires
+
+motion:
+  # What the arms do in a scare (scare/motion.py): drop, wave until the scare ends, then reset
+  # to rest in the cooldown. Servo angles; with the horns mounted so the arms are horizontal
+  # (T-pose) at 135 (servo centre), 90 = 45 deg below and 180 = 45 deg above. All placeholders
+  # until the arms are reconnected: measure the angle that is really horizontal first.
+  rest_angle: 135           # T-pose, latched, between scares
+  drop_angle: 90            # where the drop ends and the servos take over
+  up_angle: 180             # waving: up_angle, down_angle, up_angle, ...
+  down_angle: 90
+  drop_s: 0.2               # release -> servos take the arm. 0.18 s calculated for a free 1 ft,
+                            # 0.106 kg arm, horizontal -> 45 deg below; not measured
+  flap_seconds: 0.5         # per wave move; stretched slightly so the last lands on the scare's end
+  reset_delay_s: 1.0        # after a scare, hold still this long before the reset, so the end
+                            # reads as an end (the reset is in the cooldown, not the scare)
+  return_deg_per_s: 90      # the reset's speed, back to rest_angle: jumping right after a move
+                            # reverses the servos mid-move, and that current spike can brown out
+                            # their supply
+  latch:                    # solenoid latch (D-05); pin null = not fitted: the servos drive the
+                            # drop and hold rest_angle between scares
+    pin: null               # TODO Ella: BCM pin of the solenoid driver (TIP120) input
+    active_high: true
+    release_s: 0.1          # solenoid pulse that pulls the pin (power-to-release assumed)
+    relatch: true           # hold the pin back during the reset, let it spring in at rest,
+                            # then servos limp (the latch holds the arm)
 
 sound:
   device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)
@@ -65,11 +88,10 @@ sound:
   library: scare/sounds/library.yaml   # its generic set, one clip per scare in order
                             # (alternates sound types), from a random start each run, wrapping.
                             # The species sets are in the repo but not connected.
-  # Every clip fills the whole scare (controller.scare_seconds): repeated if shorter, and ended
-  # at a pause in its last end_search_s rather than cut mid-bark or mid-word. A clip with no
-  # pause there (the continuous sirens) fades out over end_fade_s, ending on time.
-  end_search_s: 1.0         # the sound may end up to this long before the light and arms;
-                            # 0 = always fade, ending exactly with them
+  # Every clip is rendered to last the scare (controller.scare_seconds +/- end_window_s):
+  # repeated if shorter, ended at the pause nearest scare_seconds rather than mid-bark or
+  # mid-word. With no pause in the window (the continuous sirens) it fades out over end_fade_s,
+  # ending at scare_seconds.
   end_fade_s: 0.5
 
 controller:
@@ -80,12 +102,11 @@ controller:
   confirm_frames: 3         # frames in a row (~0.6 s at ~5 fps) before a scare; 1 = single frame
   confirm_iou: 0.3          # how much a box must overlap the last frame's to count as the same target
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
-  scare_seconds: 5          # how long the scare lasts: light, sound and arms all run this long
-  flap_seconds: 0.5         # time between servo up and down while scaring
-  return_deg_per_s: 90      # after a scare, ease back down this fast: jumping right after an up flap
-                            # reverses the servos mid-move, and that current spike can brown out
-                            # their supply
-  cooldown_seconds: 10      # quiet time after a scare before the next one
+  scare_seconds: 5          # how long a scare lasts. Light, sound and arms start together and end
+                            # together, when that scare's sound ends:
+  end_window_s: 0.5         # at its pause nearest scare_seconds, within +/- this (4.76-5.34 s
+                            # with the generic set); 0 = every scare exactly scare_seconds
+  cooldown_seconds: 10      # quiet time after a scare before the next one; the arms reset in it
 
 log:
   # One CSV row per scare, written when it ends (columns: see scare/activation_log.py).

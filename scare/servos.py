@@ -12,7 +12,7 @@ from 50 MHz (what the kernel driver assumes) to 107 MHz until the next reboot, w
 pulse 2.14x too short and too frequent. So all timings are scaled by the real clock from
 `vcgencmd measure_clock pwm`, re-checked at most once a second while the servos move.
 
-Self-test: python -m scare.servos          (both up, wait, both down)
+Self-test: python -m scare.servos          (motion.up_angle, wait, motion.down_angle)
            python -m scare.servos sweep    (slow sweep 0 -> range_deg -> 0, twice)
            python -m scare.servos mid [deg]  (centre, then slow sweep centre +/- deg, default 60)
 """
@@ -33,12 +33,12 @@ def _write(path: str, value) -> None:
 
 
 class Servos:
-    """Both servos move together: up(), down(), set(angle), close()."""
+    """Both servos move together: set(angle), ramp(angle), close(). What angles a scare uses is
+    scare/motion.py's (config.yaml's motion section)."""
 
     def __init__(self, cfg: dict):
         self.min_us, self.max_us = cfg["min_us"], cfg["max_us"]
         self.range_deg = cfg["range_deg"]
-        self.up_angle, self.down_angle = cfg["up_angle"], cfg["down_angle"]
         self.pins = [c["pin"] for c in cfg["channels"].values()]
         self.dirs = []
         for c in cfg["channels"].values():
@@ -83,12 +83,6 @@ class Servos:
                 _write(f"{d}/enable", 1)
         self.angle = angle
 
-    def up(self) -> None:
-        self.set(self.up_angle)
-
-    def down(self) -> None:
-        self.set(self.down_angle)
-
     def sweep(self, seconds: float = 4.0) -> None:
         """0 -> range_deg -> 0, smoothly, in about `seconds`."""
         print(f"[servos] sweep 0 -> {self.range_deg} -> 0 deg", flush=True)
@@ -120,7 +114,8 @@ class Servos:
 if __name__ == "__main__":
     from . import load_config
 
-    servos = Servos(load_config()["servos"])
+    cfg = load_config()
+    servos = Servos(cfg["servos"])
     try:
         if sys.argv[1:] == ["sweep"]:
             servos.set(0)
@@ -140,9 +135,9 @@ if __name__ == "__main__":
                 time.sleep(0.5)
             time.sleep(1)
         else:
-            servos.up()
+            servos.set(cfg["motion"]["up_angle"])
             time.sleep(1)
-            servos.down()
+            servos.set(cfg["motion"]["down_angle"])
             time.sleep(1)
     finally:
         servos.close()
