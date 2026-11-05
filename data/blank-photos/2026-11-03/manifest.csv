@@ -1,0 +1,15 @@
+file,camera,shot_id,distance_ft,blank_for,timestamp
+cam0/000_blank_start.jpg,cam0,000_blank_start,,,2026-11-03T23:57:21.471
+cam1/000_blank_start.jpg,cam1,000_blank_start,,,2026-11-03T23:57:21.690
+cam0/004_raccoon_3ft_blank.jpg,cam0,004_raccoon_3ft_blank,3,001_raccoon_3ft_front;002_raccoon_3ft_side;003_raccoon_3ft_back,2026-11-03T23:58:28.552
+cam1/004_raccoon_3ft_blank.jpg,cam1,004_raccoon_3ft_blank,3,001_raccoon_3ft_front;002_raccoon_3ft_side;003_raccoon_3ft_back,2026-11-03T23:58:28.814
+cam0/008_raccoon_8ft_blank.jpg,cam0,008_raccoon_8ft_blank,8,005_raccoon_8ft_front;006_raccoon_8ft_side;007_raccoon_8ft_back;009_raccoon_5ft_edge;010_raccoon_5ft_handheld,2026-11-03T23:59:32.390
+cam1/008_raccoon_8ft_blank.jpg,cam1,008_raccoon_8ft_blank,8,005_raccoon_8ft_front;006_raccoon_8ft_side;007_raccoon_8ft_back;009_raccoon_5ft_edge;010_raccoon_5ft_handheld,2026-11-03T23:59:32.665
+cam0/014_groundhog_3ft_blank.jpg,cam0,014_groundhog_3ft_blank,3,011_groundhog_3ft_front;012_groundhog_3ft_side;013_groundhog_3ft_back,2026-11-04T00:01:28.045
+cam1/014_groundhog_3ft_blank.jpg,cam1,014_groundhog_3ft_blank,3,011_groundhog_3ft_front;012_groundhog_3ft_side;013_groundhog_3ft_back,2026-11-04T00:01:28.264
+cam0/018_groundhog_8ft_blank.jpg,cam0,018_groundhog_8ft_blank,8,015_groundhog_8ft_front;016_groundhog_8ft_side;017_groundhog_8ft_back;019_groundhog_5ft_edge;020_groundhog_5ft_handheld,2026-11-04T00:02:17.614
+cam1/018_groundhog_8ft_blank.jpg,cam1,018_groundhog_8ft_blank,8,015_groundhog_8ft_front;016_groundhog_8ft_side;017_groundhog_8ft_back;019_groundhog_5ft_edge;020_groundhog_5ft_handheld,2026-11-04T00:02:18.108
+cam0/024_squirrel_3ft_blank.jpg,cam0,024_squirrel_3ft_blank,3,021_squirrel_3ft_front;022_squirrel_3ft_side;023_squirrel_3ft_back,2026-11-04T00:04:16.010
+cam1/024_squirrel_3ft_blank.jpg,cam1,024_squirrel_3ft_blank,3,021_squirrel_3ft_front;022_squirrel_3ft_side;023_squirrel_3ft_back,2026-11-04T00:04:16.273
+cam0/028_squirrel_8ft_blank.jpg,cam0,028_squirrel_8ft_blank,8,025_squirrel_8ft_front;026_squirrel_8ft_side;027_squirrel_8ft_back;029_squirrel_5ft_edge;030_squirrel_5ft_handheld;031_person_near;032_person_far;033_person_walk;034_all3_toys;035_distractor_bag;036_distractor_plush,2026-11-04T00:04:52.626
+cam1/028_squirrel_8ft_blank.jpg,cam1,028_squirrel_8ft_blank,8,025_squirrel_8ft_front;026_squirrel_8ft_side;027_squirrel_8ft_back;029_squirrel_5ft_edge;030_squirrel_5ft_handheld;031_person_near;032_person_far;033_person_walk;034_all3_toys;035_distractor_bag;036_distractor_plush,2026-11-04T00:04:53.166

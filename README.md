@@ -16,6 +16,7 @@ scare/controller.py      main loop: cameras -> detector -> scare, cooldown
 scare/deter_test.py      run scares by hand, no camera (light + sound only)
 scare/display.py         debug window: cameras side by side, boxes, status bar
 config.yaml              every setting: cameras, model, thresholds, pins, light, servos, sound, log
+data/blank-photos/       camera photos with no animal in view (negatives), see its README
 ```
 
 Every output prints what it is about to do (`[light] GPIO26 -> HIGH (on)`) right before doing it.
