@@ -6,6 +6,8 @@ Columns:
                                stopped (the scare's end), not when the row was written
     end_reason                 timeout | shutdown (Ctrl+C, SIGTERM, an error)
     trigger_source             detection (scare.controller) | manual (scare.deter_test)
+    detection_id               the detection that fired it: its row in log.detections and its
+                               photos (empty for manual)
     label, confidence, camera  the detection that fired it (empty for manual)
     scare_s                    the scare's planned length: its sound's render (the light ends with
                                it, the controller flaps the arms for it), about scare_seconds
@@ -28,14 +30,22 @@ import os
 import time
 from pathlib import Path
 
-FIELDS = ("start", "end", "end_reason", "trigger_source", "label", "confidence", "camera",
+FIELDS = ("start", "end", "end_reason", "trigger_source", "detection_id", "label", "confidence",
+          "camera",
           "scare_s", "light_pattern", "flashes", "light_s", "clip_id", "sound_type", "aplay_rc",
           "sound_s", "sound_stopped", "sound_plays", "sound_ending", "trigger_to_relay_on_ms",
           "trigger_to_aplay_start_ms")
 
 
-class ActivationLog:
+class CsvLog:
+    """An append-only CSV with a fixed header, fsynced per row. A file with other columns is moved
+    aside (name.<mtime>.csv) and a new one started. Shared by the activation and detection logs."""
+
+    fields: tuple = ()
+    name = "csv"
+
     def __init__(self, path: Path):
+        FIELDS = self.fields
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if self.path.exists() and self.path.stat().st_size:
@@ -51,11 +61,11 @@ class ActivationLog:
         self.csv = csv.writer(self.file)
         if new:
             self._write(FIELDS)
-        print(f"[log] activations -> {self.path}", flush=True)
+        print(f"[log] {self.name} -> {self.path}", flush=True)
 
     def write(self, row: dict) -> None:
-        """One scare; row keys are FIELDS (missing ones are left empty)."""
-        self._write(["" if row.get(k) is None else row[k] for k in FIELDS])
+        """One row; keys are the fields (missing ones are left empty)."""
+        self._write(["" if row.get(k) is None else row[k] for k in self.fields])
 
     def _write(self, row) -> None:
         self.csv.writerow(row)
@@ -65,3 +75,10 @@ class ActivationLog:
     def close(self) -> None:
         if not self.file.closed:
             self.file.close()
+
+
+class ActivationLog(CsvLog):
+    """One row per scare (columns above)."""
+
+    fields = FIELDS
+    name = "activations"

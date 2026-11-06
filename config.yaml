@@ -93,3 +93,10 @@ log:
   # One CSV row per scare, written when it ends (columns: see scare/activation_log.py).
   # Relative to the repo folder. null = no file, terminal output only.
   activations: logs/activations.csv
+  # A photo, an annotated copy and a CSV row per confirmed detection, scare or not (columns and
+  # files: see scare/detection_log.py). null = off. Export + report: python -m scare.export
+  detections: logs/detections.csv
+  photos: logs/photos       # <date>/<id>.jpg and <id>_annotated.jpg
+  photo_every_s: 5          # detections that don't fire a scare: at most one per camera this often
+  jpeg_quality: 90
+  min_free_mb: 500          # below this much free space, photos pause (rows go on)

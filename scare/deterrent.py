@@ -73,7 +73,7 @@ class Deterrent:
         self._off_wall: float | None = None  # wall time this scare's outputs stopped (CSV end)
 
     def start(self, trigger_t: float, source: str, seconds: float, *, label: str = "",
-              confidence=None, camera="") -> float:
+              confidence=None, camera="", detection_id=None) -> float:
         """Start a scare. trigger_t: time.monotonic() when it was decided (latencies are from
         it). seconds: the target length (the sound picks the exact one). Returns the length; at
         start + length a timer ends the light and sound. end() must still be called."""
@@ -85,7 +85,7 @@ class Deterrent:
         deadline = t0 + length
         self._scare = {"start": time.time(), "trigger_t": trigger_t, "trigger_source": source,
                        "label": label, "confidence": confidence, "camera": camera,
-                       "length": length}
+                       "length": length, "detection_id": detection_id}
         self._off_wall = None
         if self.light:
             self.light.start(deadline)
@@ -130,7 +130,8 @@ class Deterrent:
         row = {
             "start": _iso(s["start"]), "end": _iso(self._off_wall or time.time()),
             "end_reason": reason,
-            "trigger_source": s["trigger_source"], "label": s["label"],
+            "trigger_source": s["trigger_source"], "detection_id": s["detection_id"],
+            "label": s["label"],
             "confidence": None if s["confidence"] is None else f"{s['confidence']:.3f}",
             "camera": s["camera"], "scare_s": f"{s['length']:.2f}",
             "light_pattern": lt.pattern if lt else "off",

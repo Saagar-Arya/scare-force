@@ -26,6 +26,7 @@ from .camera import Camera
 from .confirmation import TargetConfirmer
 from .detector import Detector
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
+from .detection_log import DetectionLog
 from .light import Light
 from .servos import Servos
 from .sound import Sound
@@ -76,10 +77,12 @@ def main() -> None:
     thresholds = min_confidences(rules, d["conf_threshold"])  # validate before hardware
     log_path = cfg["log"]["activations"]
 
-    camera = servos = None
+    camera = servos = detlog = None
     deterrent = Deterrent()
     try:
         deterrent.log = ActivationLog(ROOT / log_path) if log_path else None  # null: terminal only
+        if cfg["log"].get("detections"):  # a photo + CSV row per confirmed detection
+            detlog = DetectionLog(cfg["log"], ROOT)
         camera = Camera(c)
         confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],
                                       rules["confirmation_gap_seconds"]) for _ in camera.ids]
@@ -88,7 +91,7 @@ def main() -> None:
                                         rules["end_window_s"])
         sound.prime()  # switches the shared PWM clock now, so Servos reads its final rate
         servos = Servos(cfg["servos"])
-        run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos)
+        run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos, detlog)
     except (KeyboardInterrupt, Shutdown) as e:
         print(f"\n[controller] stopping ({str(e) or 'Ctrl+C'})", flush=True)
     finally:
@@ -104,10 +107,13 @@ def main() -> None:
                 camera.close()
             if not args.headless:
                 display.close()
+            if detlog is not None:
+                detlog.close()  # writes the photos still queued
         print("[controller] stopped: lamp off, aplay stopped, GPIO released", flush=True)
 
 
-def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos) -> None:
+def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, servos,
+        detlog=None) -> None:
     """The main loop; returns when the debug window is closed (q / Esc)."""
     if not args.headless:
         from . import display
@@ -152,10 +158,13 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
             best = hits[0]
             print(f"[controller] SCARE: {camera.names[camera.current]} {best.label} "
                   f"{best.confidence:.2f} at {best.box}", flush=True)
+            cam_id = camera.ids[camera.current]
+            det_id = detlog.record(frame, hits, cam_id, camera.names[camera.current], "scare",
+                                   len(people), now) if detlog else None  # photo is async
             # light.pattern (whole flashes) and the library's next clip; the clip sets the length
             length = deterrent.start(now, "detection", rules["scare_seconds"], label=best.label,
-                                     confidence=best.confidence,
-                                     camera=camera.ids[camera.current])
+                                     confidence=best.confidence, camera=cam_id,
+                                     detection_id=det_id)
             scare_until = now + length  # the arms flap until the light and sound end
             quiet_until = scare_until + rules["cooldown_seconds"]
             next_flap = now
@@ -163,6 +172,11 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         elif hits:
             note = (f"{hits[0].label} {hits[0].confidence:.2f} ignored: " +
                     ("scare running" if scare_until else f"cooldown, {quiet_until - now:.1f}s left"))
+            if detlog:  # at most one per log.photo_every_s per camera
+                detlog.record(frame, hits, camera.ids[camera.current],
+                              camera.names[camera.current],
+                              "ignored: scare running" if scare_until else "ignored: cooldown",
+                              len(people), now)
         elif people:
             note = f"{len(people)} person(s), no target"
         else:

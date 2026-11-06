@@ -13,6 +13,8 @@ scare/sound_library.py   which clips play, from scare/sounds/library.yaml
 scare/sound_fill.py      makes each clip last the scare, ending at a pause
 scare/deterrent.py       one scare's light + sound: start and end together, log it
 scare/activation_log.py  one CSV row per scare (log.activations)
+scare/detection_log.py   photo + annotated copy + CSV row per confirmed detection (log.detections)
+scare/export.py          zip of photos, CSVs and an HTML report: python -m scare.export
 scare/controller.py      main loop: cameras -> detector -> scare, cooldown
 scare/deter_test.py      run scares by hand, no camera (light + sound only)
 scare/display.py         debug window: cameras side by side, boxes, status bar
@@ -80,6 +82,23 @@ angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`
 .venv/bin/python -m scare.controller             # debug window; q / Esc / Ctrl+C stops
 .venv/bin/python -m scare.controller --headless  # no window
 ```
+
+## Detection photos and the report
+
+Every confirmed detection saves the frame, an annotated copy (boxes, species, confidence, camera,
+date and time burned in) and a row in `logs/detections.csv`, whether it fired a scare or was
+ignored in a scare or cooldown (those at most one per camera every `log.photo_every_s`). Photos
+go to `logs/photos/<date>/`, about 100 KB per detection. Each scare's row in
+`logs/activations.csv` names the detection that fired it (`detection_id`).
+
+To get the data off the Pi:
+
+    .venv/bin/python -m scare.export                     # everything, to logs/exports/
+    .venv/bin/python -m scare.export --from 2026-11-20 --to 2026-11-24 --out /media/$USER/<stick>/farm.zip
+
+Unzip and open `report.html`: detections per day and species, scares, and every detection with
+its photo. Times come from the Pi's clock. Check `timedatectl` before a farm run: with no network
+and no RTC the clock can be wrong after a reboot.
 
 ## Sounds
 
