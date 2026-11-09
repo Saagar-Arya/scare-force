@@ -3,6 +3,7 @@
     lib = Library.load()          # active_profile from library.yaml
     lib.clips_for()               # the generic set -> [Path(.../build/<profile>/<clip_id>.wav), ...]
     lib.clips_for("squirrel")     # a species set (raccoon, groundhog, squirrel)
+    Library.load(skip_types=["human_speech"])   # leave sound types out of every set
 
 library.yaml is copied unchanged from scare-force-plan (see sounds/SOURCE.md). Only the generic
 set is played (scare/sound.py). The species sets and their WAVs are kept here, built and
@@ -57,18 +58,27 @@ def round_robin(clips):
 
 
 class Library:
-    def __init__(self, data, root):
+    def __init__(self, data, root, skip_types=()):
         self.root = Path(root)
         self.profile = data["active_profile"]
         if GENERIC not in data["sets"]:
             raise ValueError("library.yaml needs a 'generic' set")
-        self.sets = {name: list(types) for name, types in data["sets"].items()}
+        known = {t for types in data["sets"].values() for t in types}
+        unknown = set(skip_types) - known
+        if unknown:
+            raise ValueError(f"sound.skip_types: no such sound type {sorted(unknown)} "
+                             f"(types: {sorted(known)})")
+        self.skip_types = list(skip_types)
+        self.sets = {name: [t for t in types if t not in self.skip_types]
+                     for name, types in data["sets"].items()}
+        if not self.sets[GENERIC]:
+            raise ValueError("sound.skip_types leaves the generic set with nothing to play")
         self.clips = data["clips"]
 
     @classmethod
-    def load(cls, path=LIBRARY):
+    def load(cls, path=LIBRARY, skip_types=()):
         path = Path(path)
-        return cls(yaml.safe_load(path.read_text()), path.resolve().parent)
+        return cls(yaml.safe_load(path.read_text()), path.resolve().parent, skip_types)
 
     @property
     def build_dir(self):

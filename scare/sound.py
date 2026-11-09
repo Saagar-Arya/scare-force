@@ -55,11 +55,13 @@ class Sound:
         """seconds, window_s: controller.scare_seconds and controller.end_window_s; each clip
         is rendered to end at a pause within seconds +/- window_s."""
         self.device = cfg["device"]
-        library = Library.load(root / cfg["library"])
+        library = Library.load(root / cfg["library"], cfg.get("skip_types") or ())
         self.clips = library.clips_for()  # the generic set, in play order (the source WAVs)
         self.types = {c["id"]: c["sound_type"] for c in library.clip_records()}
         print(f"[sound] library {cfg['library']}: profile {library.profile}, "
-              f"{len(self.clips)} generic clips", flush=True)
+              f"{len(self.clips)} generic clips"
+              + (f" (skipping {', '.join(library.skip_types)})" if library.skip_types else ""),
+              flush=True)
         self.seconds = float(seconds)
         self.renders = self._render(library.profile, float(window_s), float(cfg["end_fade_s"]))
         setpriv = shutil.which("setpriv")

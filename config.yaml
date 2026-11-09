@@ -61,10 +61,16 @@ sound:
   device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)
   mixer_card: Headphones
   mixer_control: PCM
-  level: 80                 # percent, set once at startup
+  level: 88                 # volume, percent (amixer -M), set once at startup. 80 = -1.8 dB,
+                            # 88 = +0.7 dB: the loudest without clipping (the loudest dog bark
+                            # peaks at -1.1 dBTP); 100 = +4.0 dB clips the barks by ~3 dB. For more,
+                            # turn up the amplifier.
   library: scare/sounds/library.yaml   # its generic set: a random clip per scare, never the
                             # one the previous scare played. The species sets are in the repo
                             # but not connected.
+  skip_types: []            # sound types never played, e.g. [human_speech, human_shout,
+                            # human_scream] for no human voices. [] = all five generic types
+                            # (dog_bark, siren, human_speech, human_shout, human_scream).
   # Every clip is rendered to last the scare (controller.scare_seconds +/- end_window_s):
   # repeated if shorter, ended at the pause nearest scare_seconds rather than mid-bark or
   # mid-word. With no pause in the window (the continuous sirens) it fades out over end_fade_s,

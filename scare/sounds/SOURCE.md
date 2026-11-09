@@ -23,8 +23,8 @@ BY 3.0/4.0, CC BY-SA 3.0/4.0, CC BY-NC 4.0, CC BY-NC-SA 4.0 and team-generated s
 clips are fine for this course project but not for commercial use.
 
 What plays: the controller plays the **generic** set (16 clips:
-human speech, shout, scream, dog bark, siren), a random clip per scare (never the previous
-scare's), each rendered to the scare's length at startup (`scare/sound_fill.py`). The species
+human speech, shout, scream, dog bark, siren; minus any types in `sound.skip_types` in
+config.yaml), a random clip per scare (never the previous scare's), each rendered to the scare's length at startup (`scare/sound_fill.py`). The species
 sets are kept but not connected (species-specific sound is extra credit, undecided): raccoon 12
 clips, groundhog 4, squirrel 4, all already in the generic set.
 
