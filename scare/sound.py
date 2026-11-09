@@ -19,6 +19,10 @@ plus the render's length, how many times the clip started in it, and how it ende
 normally finishes by itself (the render is exactly the scare long), so stopped=0; stopped=1
 means it was cut short (shutdown, or still playing well after the scare's end).
 
+sound.mute_idle (config.yaml): the mixer is muted except while a clip plays (unmuted just before
+aplay starts, muted when it exits or is stopped). With the amp at full gain the Pi 4 jack's own
+hiss is audible between scares otherwise (Nov 9 bench session). The level is not touched.
+
 Self-test: python -m scare.sound   (plays every clip in turn)
 """
 
@@ -72,10 +76,19 @@ class Sound:
         self.started_t: float | None = None   # monotonic: aplay process started
         self._ended_t: float | None = None    # monotonic: aplay exited (set by the reaper thread)
         self._stopped = False                 # stop() terminated the clip before its end
-        print(f"[sound] setting {cfg['mixer_card']}/{cfg['mixer_control']} to {cfg['level']}%",
-              flush=True)
+        self._mixer = ["amixer", "-q", "-c", cfg["mixer_card"], "sset", cfg["mixer_control"]]
+        self.mute_idle = bool(cfg.get("mute_idle", False))
+        self._lock = threading.Lock()  # orders unmute + new aplay against the reaper's mute
+        print(f"[sound] setting {cfg['mixer_card']}/{cfg['mixer_control']} to {cfg['level']}%"
+              + (", muted between clips" if self.mute_idle else ""), flush=True)
         subprocess.run(["amixer", "-q", "-M", "-c", cfg["mixer_card"], "sset",
                         cfg["mixer_control"], f"{cfg['level']}%", "unmute"], check=False)
+        if self.mute_idle:
+            self._set_mute(True)
+
+    def _set_mute(self, muted: bool) -> None:
+        """Mixer mute switch (the level stays). Silences the jack's hiss between clips."""
+        subprocess.run(self._mixer + ["mute" if muted else "unmute"], check=False)
 
     def _render(self, profile: str, window_s: float, fade_s: float) -> dict:
         """Render every clip to the scare length. {clip stem: (path, length_s, plays, ending)}"""
@@ -120,15 +133,22 @@ class Sound:
         self.current = clip
         self._ended_t = None
         self._stopped = False
-        self.proc = subprocess.Popen(self._wrap + ["aplay", "-q", "-D", self.device, str(path)])
+        with self._lock:
+            if self.mute_idle:
+                self._set_mute(False)
+            self.proc = subprocess.Popen(self._wrap + ["aplay", "-q", "-D", self.device, str(path)])
         self.started_t = time.monotonic()
         threading.Thread(target=self._reap, args=(self.proc,), name="aplay-reaper",
                          daemon=True).start()
 
     def _reap(self, proc: subprocess.Popen) -> None:
         proc.wait()
-        if proc is self.proc and self._ended_t is None:
-            self._ended_t = time.monotonic()
+        with self._lock:
+            if proc is self.proc:
+                if self._ended_t is None:
+                    self._ended_t = time.monotonic()
+                if self.mute_idle:  # only if no newer clip has started (it holds the lock)
+                    self._set_mute(True)
 
     def clip_type(self, clip: Path) -> str:
         return self.types.get(clip.stem, "unknown")
@@ -181,6 +201,9 @@ class Sound:
                 self.proc.wait()
             if self._ended_t is None:
                 self._ended_t = time.monotonic()
+        if self.mute_idle and self.proc is not None:  # the reaper also mutes; this covers shutdown
+            with self._lock:
+                self._set_mute(True)
 
 
 if __name__ == "__main__":
