@@ -24,7 +24,9 @@ label_map:
 
 # set -> sound types. Clips are picked by sound_type and played round-robin across types.
 sets:
-  generic:   [human_speech, human_shout, human_scream, dog_bark, siren]
+  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor]
+                                                   # Nov 10: the generic set is the library;
+                                                   # species sets below are kept but unused
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
   groundhog: [raptor, dog_bark]                    # woodchuck alarm whistles removed 2026-11-05
   squirrel:  [raptor, dog_bark]                    # no human sounds
@@ -127,6 +129,7 @@ clips:
     basis: "team-chosen test arm; no literature basis"
     flagged: false
     notes: "Amateur voice-acting 'battlecries' take sheet (21 s, many short yells separated by digital silence). Excerpt holds the loudest yells (three short cries, loudest at ~6.55 s, peak 0 dBFS in source). Words unknown. Uploader notes these are unmixed practice recordings. Start moved from 5.25 to 5.3841 s (19 ms into the first yell) so the onset rise is under 5 ms: its ~25 ms rise only passed while the -12 LUFS limiting flattened the peak."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: human_shout_woman_answer_me_02
     sound_type: human_shout
     original: originals/human_shout/human_shout_woman_answer_me_02.flac
@@ -183,6 +186,7 @@ clips:
     basis: null
     flagged: false
     notes: "Close-mic dog (breed/size not stated) barking; excerpt is the final run of ~6 loud barks (earlier part of file is whining/noises). Lossless 24-bit source, kept as 24-bit in s32 FLAC. QUALITY CAVEAT: the original recording clips at bark peaks (max 0.0 dBFS, ~127 samples at full scale) - audible as slight harshness. Same uploader also has 'Barking of a dog.ogg' (not used, likely same dog)."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: dog_bark_nono_04
     sound_type: dog_bark
     original: originals/dog_bark/dog_bark_nono_04.flac
@@ -196,6 +200,7 @@ clips:
     basis: null
     flagged: false
     notes: "A dog (breed/size not stated; bark fundamental ~520 Hz suggests medium dog) barking repeatedly; excerpt has ~10 barks, often in doubles. QUALITY CAVEAT: recording is hot and clips at bark peaks (max 0.0 dBFS, ~138 samples at full scale; Opus decode exceeds full scale and is clipped on s16 conversion). Lossy source. Use as backup to clips 01/02."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: dog_bark_rome_street_02
     sound_type: dog_bark
     original: originals/dog_bark/dog_bark_rome_street_02.flac
@@ -209,6 +214,7 @@ clips:
     basis: null
     flagged: false
     notes: "Single medium-size dog (breed unknown, bark fundamental ~600-750 Hz) barking at a distance in a Rome street; ~7 barks in doubled pairs ~1.5 s apart. Some urban ambience; quieter overall (peak -12.3 dBFS, mean -32.6 dB). Not clipped. Lossy source."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: dog_bark_rottweiler_01
     sound_type: dog_bark
     original: originals/dog_bark/dog_bark_rottweiler_01.flac
@@ -222,6 +228,7 @@ clips:
     basis: null
     flagged: false
     notes: "Rottweiler (described as 'a medium rottweiler barking at the field'), outdoors. Excerpt is a run of ~10 sharp alert barks (~0.6 s spacing), the densest/loudest run in the file. Clean, no clipping (peak -9.3 dBFS). Source is lossy Vorbis, so FLAC is a lossless copy of a lossy decode."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
 
   # ---- siren ----
   - id: siren_hilo_01
@@ -318,7 +325,7 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
-    excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
+    # back on Nov 10: the Nov 4 exclusion was under the old -18 LUFS build; passed by ear in the loud build (as played, average -12.6 dBFS)
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC914680; type: call, flight call. Gerlach, Washoe County, Nevada, United States, 2024-06-14 05:30. Single classic descending 'keee-arr' scream (one of two in the source; the second is at ~8.6 s). Bird in flight ~20 m away per recordist. Clean, high SNR, no background species. Source file: 'XC914680 - Red-tailed Hawk - Buteo jamaicensis.mp3'."
   - id: raptor_red_tailed_hawk_02
     sound_type: raptor
@@ -334,3 +341,71 @@ clips:
     flagged: false
     excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC973864; type: call. San Bernardino National Wildlife Refuge, Cochise County, Arizona, United States, 2023-12-05 10:24. Single scream given on take-off (~0.6-2.0 s), rest of the clip is quiet ambience. Parabolic mic, 24-bit WAV source, very clean. Recordist notes the call is 'different from recorded earlier'. Source file: 'XC973864 - Red-tailed Hawk - Buteo jamaicensis.wav'."
+
+  # ---- bird_synth (artificial, D-24) ----
+  - id: bird_synth_caw_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_caw_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
+    notes: "synthetic. Crow-like 'caw, caw, caw-caw' x2: buzzy 470-600 Hz source, rough AM, nasal formants 1.3/2.3/3.4 kHz"
+  - id: bird_synth_bellbird_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_bellbird_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Bellbird-like 'ding-DOING' x6: harmonic tone gliding 1.6 -> 0.9 kHz plus a decaying inharmonic ring"
+  - id: bird_synth_piha_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_piha_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Piha-like 'pi-pi-WHEEE-yo' x4: whistle up-slur 1.6 -> 3.8 kHz, falling to 2.0 kHz"
+  - id: bird_synth_hawk_scream_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_hawk_scream_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Hawk-like 'keee-arrr' x3: raspy scream falling 3.0 -> 2.1 kHz"
+  - id: bird_synth_falcon_kak_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_falcon_kak_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Falcon-like 'kak-kak-kak': 10 harsh notes at ~9/s around 1.5-1.75 kHz, twice"

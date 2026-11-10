@@ -1,24 +1,31 @@
 clip_id,sound_type,flagged,spl_1m_db,cited_spl_1m_db,level_offset_db,duration_s,lufs,true_peak_dbtp,onset_rise_ms,crest_db,gain_db,limiter_gr_db,lead_trim_s,pad_s,lufs_ok,peak_ok,onset_ok,length_ok,status
-# target_lufs -18: highest integer LUFS at which every unflagged clip needs <= 3.0 dB of limiting (floor -24)
-# set by raptor_coopers_hawk_01: crest 18.2 dB; 1.5 dB of limiting at -18 and 3.1 dB at -17
+# level_mode max: each clip at its own highest integer LUFS with <= 6.0 dB of limiting (floor -24); not loudness-matched (D-24)
 # too_peaky (over the cap even at -24 LUFS; excluded in library.yaml): none
-human_speech_gao_podcast_woman_01,human_speech,False,95.0,80.0,0.00,5.00,-18.00,-3.80,1.69,14.20,-1.20,0.00,0.00,0.00,True,True,True,True,ok
-human_speech_radio_address_man_03,human_speech,False,95.0,80.0,0.00,5.00,-18.00,-1.20,1.81,17.00,4.10,0.19,0.00,0.00,True,True,True,True,ok
-human_speech_talk_radio_interview_02,human_speech,False,95.0,80.0,0.00,5.00,-18.00,-1.10,0.60,18.00,5.20,1.26,0.00,0.00,True,True,True,True,ok
-human_shout_goal_01,human_shout,False,95.0,,0.00,4.81,-18.00,-4.00,2.56,14.00,-0.90,0.00,0.00,0.00,True,True,True,True,ok
-human_shout_man_battlecry_04,human_shout,False,95.0,,0.00,1.50,-18.00,-1.20,2.56,17.40,2.80,0.80,0.00,0.08,True,True,True,True,ok
-human_shout_woman_answer_me_02,human_shout,False,95.0,,0.00,2.15,-18.00,-2.40,4.12,15.60,2.40,0.00,0.16,0.00,True,True,True,True,ok
-human_scream_ahhh_02,human_scream,False,95.0,,0.00,2.44,-18.00,-5.70,1.85,12.30,-5.50,0.00,0.00,0.00,True,True,True,True,ok
-human_scream_woman_01,human_scream,False,95.0,,0.00,1.50,-18.00,-9.40,1.04,8.60,-6.10,0.00,0.51,0.19,True,True,True,True,ok
-dog_bark_amada44_03,dog_bark,False,95.0,86.0,0.00,5.31,-18.00,-3.40,2.46,14.60,-3.60,0.00,0.04,0.00,True,True,True,True,ok
-dog_bark_nono_04,dog_bark,False,95.0,86.0,0.00,6.00,-18.00,-4.00,1.54,14.00,-4.10,0.00,0.00,0.00,True,True,True,True,ok
+human_speech_gao_podcast_woman_01,human_speech,False,95.0,80.0,0.00,5.00,-12.10,-1.10,1.25,14.20,6.00,4.57,0.00,0.00,True,True,True,True,ok
+human_speech_radio_address_man_03,human_speech,False,95.0,80.0,0.00,5.00,-14.10,-1.10,1.81,17.00,8.90,4.99,0.00,0.00,True,True,True,True,ok
+human_speech_talk_radio_interview_02,human_speech,False,95.0,80.0,0.00,5.00,-15.10,-1.10,0.60,18.00,9.00,5.06,0.00,0.00,True,True,True,True,ok
+human_shout_goal_01,human_shout,False,95.0,,0.00,4.81,-11.10,-1.10,1.33,14.00,7.50,5.56,0.00,0.00,True,True,True,True,ok
+human_shout_man_battlecry_04,human_shout,False,95.0,,0.00,1.50,-16.00,-1.10,2.54,17.40,6.40,4.40,0.00,0.08,True,True,True,True,ok
+human_shout_woman_answer_me_02,human_shout,False,95.0,,0.00,2.15,-12.10,-1.10,0.73,15.60,9.20,5.58,0.16,0.00,True,True,True,True,ok
+human_scream_ahhh_02,human_scream,False,95.0,,0.00,2.44,-10.10,-1.10,1.85,12.30,4.10,5.06,0.00,0.00,True,True,True,True,ok
+human_scream_woman_01,human_scream,False,95.0,,0.00,1.50,-8.10,-1.10,1.04,8.60,4.60,2.43,0.51,0.19,True,True,True,True,ok
+dog_bark_amada44_03,dog_bark,False,95.0,86.0,0.00,5.31,-15.10,-1.10,2.46,14.60,1.00,2.34,0.04,0.00,True,True,True,True,ok
+dog_bark_nono_04,dog_bark,False,95.0,86.0,0.00,6.00,-14.10,-1.10,1.08,14.00,1.40,2.60,0.00,0.00,True,True,True,True,ok
 dog_bark_rome_street_02,dog_bark,False,95.0,86.0,0.00,6.00,-18.00,-1.20,3.15,17.60,12.30,0.78,0.00,0.00,True,True,True,True,ok
-dog_bark_rottweiler_01,dog_bark,False,95.0,86.0,0.00,6.00,-18.00,-1.10,1.56,18.00,8.70,1.26,0.00,0.00,True,True,True,True,ok
-siren_hilo_01,siren,False,95.0,,0.00,6.00,-18.00,-14.50,0.52,3.50,-14.70,0.00,0.00,0.00,True,True,True,True,ok
-siren_hyperyelp_01,siren,False,95.0,,0.00,4.48,-18.00,-15.20,0.50,2.80,-15.50,0.00,0.00,0.00,True,True,True,True,ok
-siren_wail_01,siren,False,95.0,,0.00,7.00,-18.00,-14.90,0.75,3.10,-15.20,0.00,0.00,0.00,True,True,True,True,ok
-siren_yelp_01,siren,False,95.0,,0.00,6.00,-18.00,-15.30,0.69,2.70,-15.60,0.00,0.00,0.00,True,True,True,True,ok
-raptor_coopers_hawk_01,raptor,False,95.0,78.0,0.00,5.24,-18.00,-1.10,1.48,18.20,5.00,1.53,0.11,0.00,True,True,True,True,ok
-raptor_red_shouldered_hawk_01,raptor,False,95.0,78.0,0.00,5.20,-18.00,-3.00,1.62,15.00,-3.20,0.00,0.00,0.00,True,True,True,True,ok
-raptor_red_tailed_hawk_01,raptor,False,95.0,78.0,0.00,1.93,-18.00,-7.90,0.69,10.10,-2.10,0.00,0.07,0.00,True,True,True,True,ok
-raptor_red_tailed_hawk_02,raptor,False,95.0,78.0,0.00,3.93,-18.00,-1.20,1.65,16.90,8.00,0.19,0.00,0.00,True,True,True,True,ok
+dog_bark_rottweiler_01,dog_bark,False,95.0,86.0,0.00,6.00,-16.00,-1.10,1.52,18.00,11.60,4.16,0.00,0.00,True,True,True,True,ok
+siren_hilo_01,siren,False,95.0,,0.00,6.00,-5.00,-1.50,0.52,3.50,-1.70,0.00,0.00,0.00,True,True,True,True,ok
+siren_hyperyelp_01,siren,False,95.0,,0.00,4.48,-4.00,-1.20,0.50,2.80,-1.50,0.00,0.00,0.00,True,True,True,True,ok
+siren_wail_01,siren,False,95.0,,0.00,7.00,-4.10,-1.10,0.75,3.10,-1.20,0.22,0.00,0.00,True,True,True,True,ok
+siren_yelp_01,siren,False,95.0,,0.00,6.00,-4.00,-1.30,0.69,2.70,-1.60,0.00,0.00,0.00,True,True,True,True,ok
+raptor_coopers_hawk_01,raptor,False,95.0,78.0,0.00,5.24,-16.00,-1.10,1.48,18.20,8.30,4.83,0.11,0.00,True,True,True,True,ok
+raptor_red_shouldered_hawk_01,raptor,False,95.0,78.0,0.00,5.20,-14.10,-1.10,1.62,15.00,3.40,4.76,0.00,0.00,True,True,True,True,ok
+raptor_red_tailed_hawk_01,raptor,False,95.0,78.0,0.00,1.93,-8.10,-1.10,0.69,10.10,9.20,4.55,0.07,0.00,True,True,True,True,ok
+raptor_red_tailed_hawk_02,raptor,False,95.0,78.0,0.00,3.93,-15.10,-1.10,1.42,16.90,12.10,4.29,0.00,0.00,True,True,True,True,ok
+woodchuck_alarm_ohio_whistle_03,woodchuck_alarm,True,95.0,,0.00,2.00,-22.00,-1.10,0.73,23.70,20.50,5.99,0.00,0.00,True,True,True,True,ok
+woodchuck_alarm_vt_whistle_02,woodchuck_alarm,True,95.0,,0.00,1.98,-16.00,-1.10,1.56,16.20,13.60,3.68,0.00,0.00,True,True,True,True,ok
+woodchuck_alarm_wv_whistle_01,woodchuck_alarm,True,95.0,,0.00,1.84,-23.00,-1.20,6.38,23.70,7.70,5.73,0.15,0.00,True,True,False,True,FAIL: onset
+bird_synth_caw_01,bird_synth,False,95.0,,0.00,3.38,-15.10,-1.10,1.81,15.70,3.30,3.09,0.00,0.00,True,True,True,True,ok
+bird_synth_bellbird_01,bird_synth,False,95.0,,0.00,4.40,-10.10,-1.10,1.25,10.50,1.40,2.42,0.00,0.00,True,True,True,True,ok
+bird_synth_piha_01,bird_synth,False,95.0,,0.00,4.24,-4.20,-1.10,0.83,3.30,3.70,4.21,0.00,0.00,True,True,True,True,ok
+bird_synth_hawk_scream_01,bird_synth,False,95.0,,0.00,3.60,-7.10,-1.10,1.08,7.00,1.00,1.40,0.00,0.00,True,True,True,True,ok
+bird_synth_falcon_kak_01,bird_synth,False,95.0,,0.00,2.45,-12.00,-1.40,0.81,10.60,-1.00,0.00,0.00,0.00,True,True,True,True,ok
