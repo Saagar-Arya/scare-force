@@ -6,7 +6,7 @@ the next clip from the sound library, servos flapping up/down and the
 light (light.pattern: steady, strobe or random, as whole flashes). The clip sets the scare's
 length (about scare_seconds, see scare/deterrent.py): light and sound end together then, the
 servos stop flapping then, and nothing fires again until cooldown_seconds have passed.
-Detection and switching keep running the whole time. A single four-class model handles each frame.
+Detection and switching keep running the whole time. A single two-class model handles each frame.
 Only animal labels can trigger; person predictions never veto an animal.
 Confirmation histories are scoped to each camera.
 Light and sound start and stop through scare/deterrent.py (shared with scare.deter_test), which

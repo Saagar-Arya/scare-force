@@ -19,8 +19,8 @@ camera:
                             # +1 = twice as bright). Raise if the image is dark, lower if washed out.
 
 detector:
-  model: models/scare_four_320.onnx
-  labels: models/scare_four_labels.txt
+  model: models/person_pest_11n_320.onnx
+  labels: models/person_pest_labels.txt
   num_threads: 4
   conf_threshold: 0.25      # boxes below this are dropped before NMS
   iou_threshold: 0.45       # NMS overlap threshold
@@ -78,12 +78,10 @@ sound:
   end_fade_s: 0.5
 
 controller:
-  labels: [raccoon, groundhog, squirrel]  # only these labels trigger
-  min_confidence:           # per label; labels not listed use default. A plain number sets all.
-    default: 0.5            # at 0.35 people in view set off scares (raccoon 0.38, squirrel 0.46)
-    # groundhog: 0.45       # the model often under-scores groundhogs; lower only after field checks
-  confirm_frames: 3         # frames in a row (~0.6 s at ~5 fps) before a scare; 1 = single frame
-  confirm_iou: 0.3          # how much a box must overlap the last frame's to count as the same target
+  labels: [pest]            # only pest triggers; person does not trigger or block a pest
+  min_confidence: 0.50      # starting threshold; check validation false triggers and recall
+  confirm_frames: 3        # require three qualifying frames to reduce one-frame false alarms
+  confirm_iou: 0.3          # minimum box overlap to count detections as the same object
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long a scare lasts. Light and sound start together and end
                             # together, when that scare's sound ends; the arms flap that long:
