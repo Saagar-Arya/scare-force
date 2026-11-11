@@ -68,6 +68,11 @@ sound:
   library: scare/sounds/library.yaml   # its generic set: a random clip per scare, never the
                             # one the previous scare played. The species sets are in the repo
                             # but not connected.
+  repeat_pause_s: [0.25, 0.6]  # Nov 10: a clip shorter than the scare repeats with a random pause
+                            # this long between copies, so it sounds like calling again, not a loop
+  mute_idle: true           # mute the mixer between clips: unmute just before each clip, mute
+                            # when it ends or is stopped. The Pi 4 jack's own hiss, at the amp's
+                            # full gain, is audible otherwise (Nov 9). false = always unmuted
   skip_types: []            # sound types never played, e.g. [human_speech, human_shout,
                             # human_scream] for no human voices. [] = all five generic types
                             # (dog_bark, siren, human_speech, human_shout, human_scream).
@@ -85,13 +90,16 @@ controller:
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long a scare lasts. Light and sound start together and end
                             # together, when that scare's sound ends; the arms flap that long:
-  end_window_s: 0.5         # at its pause nearest scare_seconds, within +/- this (4.76-5.34 s
-                            # with the generic set); 0 = every scare exactly scare_seconds
+  end_window_s: 1.0         # at its pause nearest scare_seconds, within +/- this: scares last
+                            # 4-6 s (Nov 10); a clip already 4-6 s long plays whole. 0 = exactly
+                            # scare_seconds
   flap_seconds: 0.5         # time between servo up and down while scaring
   return_deg_per_s: 90      # after a scare, ease back down this fast: jumping right after an up flap
                             # reverses the servos mid-move, and that current spike can brown out
                             # their supply
   cooldown_seconds: 10      # quiet time after a scare before the next one
+  cooldown_jitter_s: 3      # Nov 10: each cooldown is cooldown_seconds +/- this, at random (7-13 s):
+                            # varied timing slows habituation
 
 log:
   # One CSV row per scare, written when it ends (columns: see scare/activation_log.py).

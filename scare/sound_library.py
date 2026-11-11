@@ -13,10 +13,11 @@ is still open. label_map, mode and cited_levels in library.yaml are not used by 
 Self-check: python -m scare.sound_library   (every set: clip count, types, missing WAVs)
 
 Clips are ordered round-robin across sound types, so consecutive clips differ in type where the
-set allows it. Flagged clips and clips with an `excluded_reason` (e.g. "too_peaky: ...") are left
+set allows it. What plays next is TypeBag's choice (type first, weighted by type_weights). Flagged clips and clips with an `excluded_reason` (e.g. "too_peaky: ...") are left
 out. The WAVs are built in scare-force-plan; a missing one raises BuildMissing.
 """
 
+import random
 from collections import Counter
 from pathlib import Path
 
@@ -28,6 +29,55 @@ GENERIC = "generic"
 
 class BuildMissing(FileNotFoundError):
     pass
+
+
+class TypeBag:
+    """Rotation (Nov 10): pick the next scare's sound type first, then a clip of that type.
+
+    Each round is a shuffled "bag" holding every type `weight` times (library.yaml
+    type_weights, default 1), so every type plays before any type comes round again, and
+    heavier types more often. The same type never plays twice in a row, across rounds too, so a
+    target still there after the cooldown hears a different kind of sound. The clips of a type
+    take turns: shuffled each round, and a new round never starts with the clip that ended the
+    last one. next() returns a clip; type_of(clip) gives its type.
+    """
+
+    def __init__(self, clips, type_of, weights=None, rng=None):
+        self.rng = rng or random.Random()
+        self.by_type = {}
+        for c in clips:
+            self.by_type.setdefault(type_of(c), []).append(c)
+        if not self.by_type:
+            raise ValueError("no clips to rotate")
+        weights = weights or {}
+        self.weights = {t: weights.get(t, 1) for t in self.by_type}
+        bad = {t: w for t, w in self.weights.items() if not isinstance(w, int) or w < 1}
+        if bad:
+            raise ValueError(f"type_weights must be whole numbers >= 1, got {bad}")
+        self.bag, self.queues, self.last_clip, self.last_type = [], {t: [] for t in self.by_type}, {}, None
+
+    def _fill(self):
+        items = [t for t, w in self.weights.items() for _ in range(w)]
+        for _ in range(500):  # a shuffle with no type twice in a row (if one exists)
+            self.rng.shuffle(items)
+            if (len(self.by_type) == 1 or items[0] != self.last_type) and \
+                    all(a != b for a, b in zip(items, items[1:])):
+                break
+        self.bag = items
+
+    def next(self):
+        if not self.bag:
+            self._fill()
+        t = self.bag.pop(0)
+        q = self.queues[t]
+        if not q:
+            q[:] = self.by_type[t]
+            self.rng.shuffle(q)
+            if len(q) > 1 and q[0] == self.last_clip.get(t):
+                q.append(q.pop(0))
+        clip = q.pop(0)
+        self.last_clip[t], self.last_type = clip, t
+        return clip
 
 
 def round_robin(clips):
@@ -74,6 +124,10 @@ class Library:
         if not self.sets[GENERIC]:
             raise ValueError("sound.skip_types leaves the generic set with nothing to play")
         self.clips = data["clips"]
+        self.weights = dict(data.get("type_weights") or {})  # rotation: TypeBag
+        unknown = set(self.weights) - known
+        if unknown:
+            raise ValueError(f"type_weights: no such sound type {sorted(unknown)}")
 
     @classmethod
     def load(cls, path=LIBRARY, skip_types=()):

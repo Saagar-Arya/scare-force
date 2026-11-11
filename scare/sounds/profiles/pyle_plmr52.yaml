@@ -19,10 +19,16 @@ reference_spl_1m_db: 95 # the amp pot is set in the lab so that a clip at target
 level_trim_db: {}       # sound_type: dB, lab corrections after the SPL check (lab_check step h
                         # prints the value). Attenuation only (<= 0): a type that measures low
                         # means the pot goes up and the others are trimmed down. Default 0
-max_limiter_gr_db: 3.0  # most limiting any unflagged clip may get. A full build sets target_lufs
+level_mode: max         # D-24 (Nov 9): each clip as loud as it can go within max_limiter_gr_db
+                        # and the true-peak ceiling; none turned down to match. equal = D-21
+                        # (every clip at target_lufs). The amp knob is at max; clips set loudness
+max_limiter_gr_db: 6.0  # most limiting any unflagged clip may get. A full build sets target_lufs
                         # to the highest integer LUFS where every unflagged clip stays within this
                         # (floor -24), so barks, shouts and hawk calls keep their peaks; the amp
                         # pot makes up the level. A clip over it even at -24 is excluded (too_peaky)
+type_shaping: {}        # per sound type, before leveling (build step 6b): max_gap_s, gap_atten_db,
+                        # max_limiter_gr_db. Tried on dog_bark Nov 10 (deter/bark-shaping), not
+                        # adopted. A clip's own max_limiter_gr_db in library.yaml wins over its type's.
 onset_ramp_ms: 1        # anti-click ramp only, never a fade-in
 tail_fade_ms: 20
 min_s: 1.5              # trailing trim never cuts below this

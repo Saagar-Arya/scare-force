@@ -24,10 +24,19 @@ label_map:
 
 # set -> sound types. Clips are picked by sound_type and played round-robin across types.
 sets:
-  generic:   [human_speech, human_shout, human_scream, dog_bark, siren]
+  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor, animal_shriek]
+                                                   # Nov 10: the generic set is the library;
+                                                   # species sets below are kept but unused
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
   groundhog: [raptor, dog_bark]                    # woodchuck alarm whistles removed 2026-11-05
   squirrel:  [raptor, dog_bark]                    # no human sounds
+
+# Rotation (Nov 10, scare-force scare/sound_library.py TypeBag): the sound type is picked first,
+# every type once per round, this many times per round (default 1); then that type's next clip.
+type_weights:
+  siren: 2
+  raptor: 2
+  animal_shriek: 1  # Nov 10: lemur + warthog; the lemur alone at 2 came up too often (Nikhil)
 
 # What the cited studies used: sound_type -> SPL at 1 m, references, measurement conditions.
 # NOT applied (D-21: all types play at reference_spl_1m_db so TR4 Test 4 holds). Documentation
@@ -127,6 +136,7 @@ clips:
     basis: "team-chosen test arm; no literature basis"
     flagged: false
     notes: "Amateur voice-acting 'battlecries' take sheet (21 s, many short yells separated by digital silence). Excerpt holds the loudest yells (three short cries, loudest at ~6.55 s, peak 0 dBFS in source). Words unknown. Uploader notes these are unmixed practice recordings. Start moved from 5.25 to 5.3841 s (19 ms into the first yell) so the onset rise is under 5 ms: its ~25 ms rise only passed while the -12 LUFS limiting flattened the peak."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: human_shout_woman_answer_me_02
     sound_type: human_shout
     original: originals/human_shout/human_shout_woman_answer_me_02.flac
@@ -154,6 +164,7 @@ clips:
     evidence: []
     basis: "team-chosen test arm; no literature basis"
     flagged: false
+    max_limiter_gr_db: 12.0  # Nov 10: kept as heard in the scream audition (12 dB version)
     notes: "'Someone screams \"ahhh\"' - a ~2.4 s sustained scream starting immediately. Hosted on Commons (copied from Freesound). Lossy mp3 source; peak -0.5 dBFS, no clipped samples. Speaker gender not stated (sounds-like not verified)."
   - id: human_scream_woman_01
     sound_type: human_scream
@@ -168,6 +179,7 @@ clips:
     basis: "team-chosen test arm; no literature basis"
     flagged: false
     notes: "Voice-actor SFX: female scream, ~1 s of loud scream (0.65-1.25 s) in a 1.8 s file. Clean, no clipping, silent background. Same performer as human_shout_woman_answer_me_02 (different recording)."
+    excluded_reason: "dropped Nov 10 (Nikhil): not scary enough next to the new screams"
 
   # ---- dog_bark ----
   - id: dog_bark_amada44_03
@@ -183,6 +195,7 @@ clips:
     basis: null
     flagged: false
     notes: "Close-mic dog (breed/size not stated) barking; excerpt is the final run of ~6 loud barks (earlier part of file is whining/noises). Lossless 24-bit source, kept as 24-bit in s32 FLAC. QUALITY CAVEAT: the original recording clips at bark peaks (max 0.0 dBFS, ~127 samples at full scale) - audible as slight harshness. Same uploader also has 'Barking of a dog.ogg' (not used, likely same dog)."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: dog_bark_nono_04
     sound_type: dog_bark
     original: originals/dog_bark/dog_bark_nono_04.flac
@@ -196,6 +209,7 @@ clips:
     basis: null
     flagged: false
     notes: "A dog (breed/size not stated; bark fundamental ~520 Hz suggests medium dog) barking repeatedly; excerpt has ~10 barks, often in doubles. QUALITY CAVEAT: recording is hot and clips at bark peaks (max 0.0 dBFS, ~138 samples at full scale; Opus decode exceeds full scale and is clipped on s16 conversion). Lossy source. Use as backup to clips 01/02."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: dog_bark_rome_street_02
     sound_type: dog_bark
     original: originals/dog_bark/dog_bark_rome_street_02.flac
@@ -209,6 +223,7 @@ clips:
     basis: null
     flagged: false
     notes: "Single medium-size dog (breed unknown, bark fundamental ~600-750 Hz) barking at a distance in a Rome street; ~7 barks in doubled pairs ~1.5 s apart. Some urban ambience; quieter overall (peak -12.3 dBFS, mean -32.6 dB). Not clipped. Lossy source."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
   - id: dog_bark_rottweiler_01
     sound_type: dog_bark
     original: originals/dog_bark/dog_bark_rottweiler_01.flac
@@ -222,6 +237,7 @@ clips:
     basis: null
     flagged: false
     notes: "Rottweiler (described as 'a medium rottweiler barking at the field'), outdoors. Excerpt is a run of ~10 sharp alert barks (~0.6 s spacing), the densest/loudest run in the file. Clean, no clipping (peak -9.3 dBFS). Source is lossy Vorbis, so FLAC is a lossless copy of a lossy decode."
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
 
   # ---- siren ----
   - id: siren_hilo_01
@@ -318,7 +334,8 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
-    excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
+    max_limiter_gr_db: 12.0  # Nov 10: hawks pass by ear at 12 dB of limiting
+    # back on Nov 10: the Nov 4 exclusion was under the old -18 LUFS build; passed by ear in the loud build (as played, average -12.6 dBFS)
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC914680; type: call, flight call. Gerlach, Washoe County, Nevada, United States, 2024-06-14 05:30. Single classic descending 'keee-arr' scream (one of two in the source; the second is at ~8.6 s). Bird in flight ~20 m away per recordist. Clean, high SNR, no background species. Source file: 'XC914680 - Red-tailed Hawk - Buteo jamaicensis.mp3'."
   - id: raptor_red_tailed_hawk_02
     sound_type: raptor
@@ -334,3 +351,187 @@ clips:
     flagged: false
     excluded_reason: "dead when tested on the Pi (Saagar, 2026-11-04); WAV removed"
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC973864; type: call. San Bernardino National Wildlife Refuge, Cochise County, Arizona, United States, 2023-12-05 10:24. Single scream given on take-off (~0.6-2.0 s), rest of the clip is quiet ambience. Parabolic mic, 24-bit WAV source, very clean. Recordist notes the call is 'different from recorded earlier'. Source file: 'XC973864 - Red-tailed Hawk - Buteo jamaicensis.wav'."
+
+  # ---- bird_synth (artificial, D-24) ----
+  - id: bird_synth_caw_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_caw_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    excluded_reason: "too quiet by ear (Nov 10 listening, Nikhil): as played, average below -14.5 dBFS"
+    notes: "synthetic. Crow-like 'caw, caw, caw-caw' x2: buzzy 470-600 Hz source, rough AM, nasal formants 1.3/2.3/3.4 kHz"
+  - id: bird_synth_bellbird_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_bellbird_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Bellbird-like 'ding-DOING' x6: harmonic tone gliding 1.6 -> 0.9 kHz plus a decaying inharmonic ring"
+    excluded_reason: "dropped Nov 10 (Nikhil): synthetic calls sound unnatural; the two loudest (piha, hawk scream) stay until more real birds pass"
+  - id: bird_synth_piha_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_piha_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Piha-like 'pi-pi-WHEEE-yo' x4: whistle up-slur 1.6 -> 3.8 kHz, falling to 2.0 kHz"
+  - id: bird_synth_hawk_scream_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_hawk_scream_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Hawk-like 'keee-arrr' x3: raspy scream falling 3.0 -> 2.1 kHz"
+  - id: bird_synth_falcon_kak_01
+    sound_type: bird_synth
+    original: originals/bird_synth/bird_synth_falcon_kak_01.flac
+    source_url: null
+    media_url: null
+    author: "Scare Force team (make_synth_sounds.py, seeded)"
+    license: "team-generated"
+    license_url: null
+    excerpt: null
+    evidence: []
+    basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
+    flagged: false
+    notes: "synthetic. Falcon-like 'kak-kak-kak': 10 harsh notes at ~9/s around 1.5-1.75 kHz, twice"
+    excluded_reason: "dropped Nov 10 (Nikhil): synthetic calls sound unnatural; the two loudest (piha, hawk scream) stay until more real birds pass"
+
+  # ---- raptor, animal_shriek: loud natural calls (Nov 10 listening; each within ~4 dB(A) of the sirens) ----
+  - id: raptor_snowy_owl_01
+    sound_type: raptor
+    original: originals/raptor/raptor_snowy_owl_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Snowy_owl_scream_(loud).wav"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/0/0b/Snowy_owl_scream_%28loud%29.wav"
+    author: "HEtonis2 (Wikimedia Commons)"
+    license: "CC BY-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
+    excerpt: null
+    evidence: [126]
+    basis: "raptor call; loud and natural by ear (Nov 10 listening: as loud as the sirens)"
+    flagged: false
+    max_limiter_gr_db: 6.0  # passed at 6 dB; more would cost clarity for no need
+    notes: "Snowy owl (Bubo scandiacus) scream, 1.2 s, whole file. Repeats with short varied pauses to fill a scare."
+  - id: raptor_red_shouldered_hawk_02
+    sound_type: raptor
+    original: originals/raptor/raptor_red_shouldered_hawk_02.flac
+    source_url: "https://xeno-canto.org/585663"
+    media_url: "https://xeno-canto.org/585663/download"
+    author: "Thomas G. Graves (xeno-canto XC585663)"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 118.3, end_s: 124.3}
+    evidence: [126]
+    basis: "raptor call; dense 'kee-ah' series, passed by ear at 12 dB of limiting (Nov 10)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Red-shouldered Hawk (Buteo lineatus), Cambria, San Luis Obispo County, CA; alarm/kleer series between two birds. License checked on the xeno-canto page Nov 10."
+  - id: raptor_red_tailed_hawk_03
+    sound_type: raptor
+    original: originals/raptor/raptor_red_tailed_hawk_03.flac
+    source_url: "https://xeno-canto.org/638607"
+    media_url: "https://xeno-canto.org/638607/download"
+    author: "Bruce Lagerquist (xeno-canto XC638607)"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 14.4, end_s: 17.6}
+    evidence: [126]
+    basis: "raptor call; the classic red-tailed scream, passed by ear at 12 dB of limiting (Nov 10)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Red-tailed Hawk (Buteo jamaicensis), Cassimer Bar, Okanogan County, WA; bird perched in a tree in a marshy area. License checked on the xeno-canto page Nov 10."
+  - id: animal_shriek_lemur_01
+    sound_type: animal_shriek
+    original: originals/animal_shriek/animal_shriek_lemur_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Varecia_roar-shriek_chorus1.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/7/7d/Varecia_roar-shriek_chorus1.ogg"
+    author: "Joseph M. Macedonia (Wikimedia Commons)"
+    license: "CC BY-SA 3.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/3.0/"
+    excerpt: {start_s: 0.18, end_s: null}
+    evidence: []
+    basis: "team choice by ear (Nov 10): loud, harsh, continuous natural call; no cited basis for these species"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Ruffed lemur (Varecia) roar-shriek chorus, 2.7 s. Not a predator of the target species: an arm on loudness and novelty, like the sirens."
+
+  # ---- screams and shrieks, Nov 10 audition (Nikhil: 5, 7, 8 especially good) ----
+  - id: human_scream_boy_03
+    sound_type: human_scream
+    original: originals/human_scream/human_scream_boy_03.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:NOW_screaming.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/0/0d/NOW_screaming.ogg"
+    author: "Ranch9613 (Wikimedia Commons)"
+    license: "CC0 1.0"
+    license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: {start_s: 0.06, end_s: null}
+    evidence: []
+    basis: "screams are a team choice with no cited basis (D-17); kept by ear Nov 10 (loud, continuous, 4.1 s)"
+    flagged: false
+    notes: "A boy screaming, 4.1 s, plays whole."
+  - id: human_scream_demonic_woman_04
+    sound_type: human_scream
+    original: originals/human_scream/human_scream_demonic_woman_04.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Nick121087_-_Demonic_Woman_Scream_(cc0)_(freesound).mp3"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/e/e6/Nick121087_-_Demonic_Woman_Scream_%28cc0%29_%28freesound%29.mp3"
+    author: "nick121087 (Freesound, via Wikimedia Commons)"
+    license: "CC0 1.0"
+    license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: {start_s: 0.315, end_s: null}
+    evidence: []
+    basis: "screams are a team choice with no cited basis (D-17); 'especially good' by ear Nov 10 (bloodcurdling)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "A woman's hawk-like screech with processing (recordist's description), 3.3 s; repeats once with a pause."
+  - id: animal_shriek_warthog_01
+    sound_type: animal_shriek
+    original: originals/animal_shriek/animal_shriek_warthog_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:20200322_warthog_screeching.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/3/3f/20200322_warthog_screeching.ogg"
+    author: "AGOoiu (Wikimedia Commons)"
+    license: "CC BY-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
+    excerpt: {start_s: 0.04, end_s: null}
+    evidence: []
+    basis: "team choice by ear (Nov 10, 'especially good'): loud natural shriek, within ~1 dB(A) of the sirens; no cited basis"
+    flagged: false
+    notes: "Warthog screeching, 2.6 s; repeats once with a pause."
+  - id: raptor_screaming_hawk_04
+    sound_type: raptor
+    original: originals/raptor/raptor_screaming_hawk_04.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Screaming_Hawk.wav"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Screaming_Hawk.wav"
+    author: "PsychoBird (SoundBible, via Wikimedia Commons)"
+    license: "CC BY 3.0"
+    license_url: "https://creativecommons.org/licenses/by/3.0/"
+    excerpt: {start_s: 0.06, end_s: null}
+    evidence: [126]
+    basis: "raptor call; 'especially good' by ear Nov 10; passes at 12 dB of limiting (onset fails at 6)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "'Scream of a hawk' (species not given; sound-effect site recording), 3.2 s; repeats once with a pause."
