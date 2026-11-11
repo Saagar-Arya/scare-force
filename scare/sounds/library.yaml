@@ -24,7 +24,7 @@ label_map:
 
 # set -> sound types. Clips are picked by sound_type and played round-robin across types.
 sets:
-  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor, lemur_shriek]
+  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor, animal_shriek]
                                                    # Nov 10: the generic set is the library;
                                                    # species sets below are kept but unused
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
@@ -36,7 +36,7 @@ sets:
 type_weights:
   siren: 2
   raptor: 2
-  lemur_shriek: 2
+  animal_shriek: 1  # Nov 10: lemur + warthog; the lemur alone at 2 came up too often (Nikhil)
 
 # What the cited studies used: sound_type -> SPL at 1 m, references, measurement conditions.
 # NOT applied (D-21: all types play at reference_spl_1m_db so TR4 Test 4 holds). Documentation
@@ -164,6 +164,7 @@ clips:
     evidence: []
     basis: "team-chosen test arm; no literature basis"
     flagged: false
+    max_limiter_gr_db: 12.0  # Nov 10: kept as heard in the scream audition (12 dB version)
     notes: "'Someone screams \"ahhh\"' - a ~2.4 s sustained scream starting immediately. Hosted on Commons (copied from Freesound). Lossy mp3 source; peak -0.5 dBFS, no clipped samples. Speaker gender not stated (sounds-like not verified)."
   - id: human_scream_woman_01
     sound_type: human_scream
@@ -178,6 +179,7 @@ clips:
     basis: "team-chosen test arm; no literature basis"
     flagged: false
     notes: "Voice-actor SFX: female scream, ~1 s of loud scream (0.65-1.25 s) in a 1.8 s file. Clean, no clipping, silent background. Same performer as human_shout_woman_answer_me_02 (different recording)."
+    excluded_reason: "dropped Nov 10 (Nikhil): not scary enough next to the new screams"
 
   # ---- dog_bark ----
   - id: dog_bark_amada44_03
@@ -420,7 +422,7 @@ clips:
     notes: "synthetic. Falcon-like 'kak-kak-kak': 10 harsh notes at ~9/s around 1.5-1.75 kHz, twice"
     excluded_reason: "dropped Nov 10 (Nikhil): synthetic calls sound unnatural; the two loudest (piha, hawk scream) stay until more real birds pass"
 
-  # ---- raptor, lemur_shriek: loud natural calls (Nov 10 listening; each within ~4 dB(A) of the sirens) ----
+  # ---- raptor, animal_shriek: loud natural calls (Nov 10 listening; each within ~4 dB(A) of the sirens) ----
   - id: raptor_snowy_owl_01
     sound_type: raptor
     original: originals/raptor/raptor_snowy_owl_01.flac
@@ -463,9 +465,9 @@ clips:
     flagged: false
     max_limiter_gr_db: 12.0
     notes: "Red-tailed Hawk (Buteo jamaicensis), Cassimer Bar, Okanogan County, WA; bird perched in a tree in a marshy area. License checked on the xeno-canto page Nov 10."
-  - id: lemur_shriek_ruffed_01
-    sound_type: lemur_shriek
-    original: originals/lemur_shriek/lemur_shriek_ruffed_01.flac
+  - id: animal_shriek_lemur_01
+    sound_type: animal_shriek
+    original: originals/animal_shriek/animal_shriek_lemur_01.flac
     source_url: "https://commons.wikimedia.org/wiki/File:Varecia_roar-shriek_chorus1.ogg"
     media_url: "https://upload.wikimedia.org/wikipedia/commons/7/7d/Varecia_roar-shriek_chorus1.ogg"
     author: "Joseph M. Macedonia (Wikimedia Commons)"
@@ -477,3 +479,59 @@ clips:
     flagged: false
     max_limiter_gr_db: 12.0
     notes: "Ruffed lemur (Varecia) roar-shriek chorus, 2.7 s. Not a predator of the target species: an arm on loudness and novelty, like the sirens."
+
+  # ---- screams and shrieks, Nov 10 audition (Nikhil: 5, 7, 8 especially good) ----
+  - id: human_scream_boy_03
+    sound_type: human_scream
+    original: originals/human_scream/human_scream_boy_03.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:NOW_screaming.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/0/0d/NOW_screaming.ogg"
+    author: "Ranch9613 (Wikimedia Commons)"
+    license: "CC0 1.0"
+    license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: {start_s: 0.06, end_s: null}
+    evidence: []
+    basis: "screams are a team choice with no cited basis (D-17); kept by ear Nov 10 (loud, continuous, 4.1 s)"
+    flagged: false
+    notes: "A boy screaming, 4.1 s, plays whole."
+  - id: human_scream_demonic_woman_04
+    sound_type: human_scream
+    original: originals/human_scream/human_scream_demonic_woman_04.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Nick121087_-_Demonic_Woman_Scream_(cc0)_(freesound).mp3"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/e/e6/Nick121087_-_Demonic_Woman_Scream_%28cc0%29_%28freesound%29.mp3"
+    author: "nick121087 (Freesound, via Wikimedia Commons)"
+    license: "CC0 1.0"
+    license_url: "https://creativecommons.org/publicdomain/zero/1.0/"
+    excerpt: {start_s: 0.315, end_s: null}
+    evidence: []
+    basis: "screams are a team choice with no cited basis (D-17); 'especially good' by ear Nov 10 (bloodcurdling)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "A woman's hawk-like screech with processing (recordist's description), 3.3 s; repeats once with a pause."
+  - id: animal_shriek_warthog_01
+    sound_type: animal_shriek
+    original: originals/animal_shriek/animal_shriek_warthog_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:20200322_warthog_screeching.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/3/3f/20200322_warthog_screeching.ogg"
+    author: "AGOoiu (Wikimedia Commons)"
+    license: "CC BY-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
+    excerpt: {start_s: 0.04, end_s: null}
+    evidence: []
+    basis: "team choice by ear (Nov 10, 'especially good'): loud natural shriek, within ~1 dB(A) of the sirens; no cited basis"
+    flagged: false
+    notes: "Warthog screeching, 2.6 s; repeats once with a pause."
+  - id: raptor_screaming_hawk_04
+    sound_type: raptor
+    original: originals/raptor/raptor_screaming_hawk_04.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Screaming_Hawk.wav"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/9/9d/Screaming_Hawk.wav"
+    author: "PsychoBird (SoundBible, via Wikimedia Commons)"
+    license: "CC BY 3.0"
+    license_url: "https://creativecommons.org/licenses/by/3.0/"
+    excerpt: {start_s: 0.06, end_s: null}
+    evidence: [126]
+    basis: "raptor call; 'especially good' by ear Nov 10; passes at 12 dB of limiting (onset fails at 6)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "'Scream of a hawk' (species not given; sound-effect site recording), 3.2 s; repeats once with a pause."

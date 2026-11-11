@@ -7,7 +7,7 @@ human_speech_talk_radio_interview_02,human_speech,False,95.0,80.0,0.00,5.00,-15.
 human_shout_goal_01,human_shout,False,95.0,,0.00,4.81,-11.10,-1.10,1.33,14.00,7.50,5.56,0.00,0.00,True,True,True,True,ok
 human_shout_man_battlecry_04,human_shout,False,95.0,,0.00,1.50,-16.00,-1.10,2.54,17.40,6.40,4.40,0.00,0.08,True,True,True,True,ok
 human_shout_woman_answer_me_02,human_shout,False,95.0,,0.00,2.15,-12.10,-1.10,0.73,15.60,9.20,5.58,0.16,0.00,True,True,True,True,ok
-human_scream_ahhh_02,human_scream,False,95.0,,0.00,2.44,-10.10,-1.10,1.85,12.30,4.10,5.06,0.00,0.00,True,True,True,True,ok
+human_scream_ahhh_02,human_scream,False,95.0,,0.00,2.44,-8.10,-1.10,0.79,12.30,10.10,11.06,0.00,0.00,True,True,True,True,ok
 human_scream_woman_01,human_scream,False,95.0,,0.00,1.50,-8.10,-1.10,1.04,8.60,4.60,2.43,0.51,0.19,True,True,True,True,ok
 dog_bark_amada44_03,dog_bark,False,95.0,86.0,0.00,5.31,-15.10,-1.10,2.46,14.60,1.00,2.34,0.04,0.00,True,True,True,True,ok
 dog_bark_nono_04,dog_bark,False,95.0,86.0,0.00,6.00,-14.10,-1.10,1.08,14.00,1.40,2.60,0.00,0.00,True,True,True,True,ok
@@ -32,4 +32,8 @@ bird_synth_falcon_kak_01,bird_synth,False,95.0,,0.00,2.45,-12.00,-1.40,0.81,10.6
 raptor_snowy_owl_01,raptor,False,95.0,78.0,0.00,1.50,-3.00,-1.40,0.56,5.20,-2.30,3.78,0.00,0.30,True,True,True,True,ok
 raptor_red_shouldered_hawk_02,raptor,False,95.0,78.0,0.00,5.99,-7.10,-1.10,2.58,10.80,19.60,9.70,0.01,0.00,True,True,True,True,ok
 raptor_red_tailed_hawk_03,raptor,False,95.0,78.0,0.00,1.76,-5.10,-1.10,4.85,13.50,14.90,11.93,0.00,0.00,True,True,True,True,ok
-lemur_shriek_ruffed_01,lemur_shriek,False,95.0,,0.00,2.65,-8.10,-1.10,2.85,10.70,7.10,8.30,0.00,0.00,True,True,True,True,ok
+animal_shriek_lemur_01,animal_shriek,False,95.0,,0.00,2.65,-8.10,-1.10,2.85,10.70,7.10,8.30,0.00,0.00,True,True,True,True,ok
+human_scream_boy_03,human_scream,False,95.0,,0.00,4.14,-7.10,-1.10,2.35,7.00,4.80,1.68,0.00,0.00,True,True,True,True,ok
+human_scream_demonic_woman_04,human_scream,False,95.0,,0.00,3.16,-9.10,-1.10,0.60,12.30,9.50,10.49,0.00,0.00,True,True,True,True,ok
+animal_shriek_warthog_01,animal_shriek,False,95.0,,0.00,2.64,-5.10,-1.10,1.35,5.20,0.00,1.59,0.00,0.00,True,True,True,True,ok
+raptor_screaming_hawk_04,raptor,False,95.0,78.0,0.00,3.22,-7.10,-1.10,0.96,11.20,13.90,11.62,0.00,0.00,True,True,True,True,ok
