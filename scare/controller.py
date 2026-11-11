@@ -5,7 +5,8 @@ camera.dwell_seconds, then switches to the next. A matching detection on any of 
 the next clip from the sound library, servos flapping up/down and the
 light (light.pattern: steady, strobe or random, as whole flashes). The clip sets the scare's
 length (about scare_seconds, see scare/deterrent.py): light and sound end together then, the
-servos stop flapping then, and nothing fires again until cooldown_seconds have passed.
+servos stop flapping then, and nothing fires again until cooldown_seconds (+/- cooldown_jitter_s,
+random each time) have passed.
 Detection and switching keep running the whole time. A single four-class model handles each frame.
 Only animal labels can trigger; person predictions never veto an animal.
 Confirmation histories are scoped to each camera.
@@ -18,6 +19,7 @@ Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C sto
 """
 
 import argparse
+import random
 import time
 
 from . import ROOT, load_config
@@ -166,7 +168,8 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                                      confidence=best.confidence, camera=cam_id,
                                      detection_id=det_id)
             scare_until = now + length  # the arms flap until the light and sound end
-            quiet_until = scare_until + rules["cooldown_seconds"]
+            jit = float(rules.get("cooldown_jitter_s", 0.0))  # Nov 10: varied rest between scares
+            quiet_until = scare_until + max(0.0, rules["cooldown_seconds"] + random.uniform(-jit, jit))
             next_flap = now
             note = None
         elif hits:

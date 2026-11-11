@@ -24,12 +24,19 @@ label_map:
 
 # set -> sound types. Clips are picked by sound_type and played round-robin across types.
 sets:
-  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor]
+  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor, lemur_shriek]
                                                    # Nov 10: the generic set is the library;
                                                    # species sets below are kept but unused
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
   groundhog: [raptor, dog_bark]                    # woodchuck alarm whistles removed 2026-11-05
   squirrel:  [raptor, dog_bark]                    # no human sounds
+
+# Rotation (Nov 10, scare-force scare/sound_library.py TypeBag): the sound type is picked first,
+# every type once per round, this many times per round (default 1); then that type's next clip.
+type_weights:
+  siren: 2
+  raptor: 2
+  lemur_shriek: 2
 
 # What the cited studies used: sound_type -> SPL at 1 m, references, measurement conditions.
 # NOT applied (D-21: all types play at reference_spl_1m_db so TR4 Test 4 holds). Documentation
@@ -325,6 +332,7 @@ clips:
     evidence: [126]
     basis: null
     flagged: false
+    max_limiter_gr_db: 12.0  # Nov 10: hawks pass by ear at 12 dB of limiting
     # back on Nov 10: the Nov 4 exclusion was under the old -18 LUFS build; passed by ear in the loud build (as played, average -12.6 dBFS)
     notes: "Red-tailed Hawk (Buteo jamaicensis). xeno-canto XC914680; type: call, flight call. Gerlach, Washoe County, Nevada, United States, 2024-06-14 05:30. Single classic descending 'keee-arr' scream (one of two in the source; the second is at ~8.6 s). Bird in flight ~20 m away per recordist. Clean, high SNR, no background species. Source file: 'XC914680 - Red-tailed Hawk - Buteo jamaicensis.mp3'."
   - id: raptor_red_tailed_hawk_02
@@ -370,6 +378,7 @@ clips:
     basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
     flagged: false
     notes: "synthetic. Bellbird-like 'ding-DOING' x6: harmonic tone gliding 1.6 -> 0.9 kHz plus a decaying inharmonic ring"
+    excluded_reason: "dropped Nov 10 (Nikhil): synthetic calls sound unnatural; the two loudest (piha, hawk scream) stay until more real birds pass"
   - id: bird_synth_piha_01
     sound_type: bird_synth
     original: originals/bird_synth/bird_synth_piha_01.flac
@@ -409,3 +418,62 @@ clips:
     basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
     flagged: false
     notes: "synthetic. Falcon-like 'kak-kak-kak': 10 harsh notes at ~9/s around 1.5-1.75 kHz, twice"
+    excluded_reason: "dropped Nov 10 (Nikhil): synthetic calls sound unnatural; the two loudest (piha, hawk scream) stay until more real birds pass"
+
+  # ---- raptor, lemur_shriek: loud natural calls (Nov 10 listening; each within ~4 dB(A) of the sirens) ----
+  - id: raptor_snowy_owl_01
+    sound_type: raptor
+    original: originals/raptor/raptor_snowy_owl_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Snowy_owl_scream_(loud).wav"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/0/0b/Snowy_owl_scream_%28loud%29.wav"
+    author: "HEtonis2 (Wikimedia Commons)"
+    license: "CC BY-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
+    excerpt: null
+    evidence: [126]
+    basis: "raptor call; loud and natural by ear (Nov 10 listening: as loud as the sirens)"
+    flagged: false
+    max_limiter_gr_db: 6.0  # passed at 6 dB; more would cost clarity for no need
+    notes: "Snowy owl (Bubo scandiacus) scream, 1.2 s, whole file. Repeats with short varied pauses to fill a scare."
+  - id: raptor_red_shouldered_hawk_02
+    sound_type: raptor
+    original: originals/raptor/raptor_red_shouldered_hawk_02.flac
+    source_url: "https://xeno-canto.org/585663"
+    media_url: "https://xeno-canto.org/585663/download"
+    author: "Thomas G. Graves (xeno-canto XC585663)"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 118.3, end_s: 124.3}
+    evidence: [126]
+    basis: "raptor call; dense 'kee-ah' series, passed by ear at 12 dB of limiting (Nov 10)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Red-shouldered Hawk (Buteo lineatus), Cambria, San Luis Obispo County, CA; alarm/kleer series between two birds. License checked on the xeno-canto page Nov 10."
+  - id: raptor_red_tailed_hawk_03
+    sound_type: raptor
+    original: originals/raptor/raptor_red_tailed_hawk_03.flac
+    source_url: "https://xeno-canto.org/638607"
+    media_url: "https://xeno-canto.org/638607/download"
+    author: "Bruce Lagerquist (xeno-canto XC638607)"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 14.4, end_s: 17.6}
+    evidence: [126]
+    basis: "raptor call; the classic red-tailed scream, passed by ear at 12 dB of limiting (Nov 10)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Red-tailed Hawk (Buteo jamaicensis), Cassimer Bar, Okanogan County, WA; bird perched in a tree in a marshy area. License checked on the xeno-canto page Nov 10."
+  - id: lemur_shriek_ruffed_01
+    sound_type: lemur_shriek
+    original: originals/lemur_shriek/lemur_shriek_ruffed_01.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Varecia_roar-shriek_chorus1.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/7/7d/Varecia_roar-shriek_chorus1.ogg"
+    author: "Joseph M. Macedonia (Wikimedia Commons)"
+    license: "CC BY-SA 3.0"
+    license_url: "https://creativecommons.org/licenses/by-sa/3.0/"
+    excerpt: {start_s: 0.18, end_s: null}
+    evidence: []
+    basis: "team choice by ear (Nov 10): loud, harsh, continuous natural call; no cited basis for these species"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Ruffed lemur (Varecia) roar-shriek chorus, 2.7 s. Not a predator of the target species: an arm on loudness and novelty, like the sirens."

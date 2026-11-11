@@ -19,7 +19,7 @@ siren_wail_01,siren,False,95.0,,0.00,7.00,-4.10,-1.10,0.75,3.10,-1.20,0.22,0.00,
 siren_yelp_01,siren,False,95.0,,0.00,6.00,-4.00,-1.30,0.69,2.70,-1.60,0.00,0.00,0.00,True,True,True,True,ok
 raptor_coopers_hawk_01,raptor,False,95.0,78.0,0.00,5.24,-16.00,-1.10,1.48,18.20,8.30,4.83,0.11,0.00,True,True,True,True,ok
 raptor_red_shouldered_hawk_01,raptor,False,95.0,78.0,0.00,5.20,-14.10,-1.10,1.62,15.00,3.40,4.76,0.00,0.00,True,True,True,True,ok
-raptor_red_tailed_hawk_01,raptor,False,95.0,78.0,0.00,1.93,-8.10,-1.10,0.69,10.10,9.20,4.55,0.07,0.00,True,True,True,True,ok
+raptor_red_tailed_hawk_01,raptor,False,95.0,78.0,0.00,1.93,-6.10,-1.10,0.69,10.10,14.30,9.65,0.07,0.00,True,True,True,True,ok
 raptor_red_tailed_hawk_02,raptor,False,95.0,78.0,0.00,3.93,-15.10,-1.10,1.42,16.90,12.10,4.29,0.00,0.00,True,True,True,True,ok
 woodchuck_alarm_ohio_whistle_03,woodchuck_alarm,True,95.0,,0.00,2.00,-22.00,-1.10,0.73,23.70,20.50,5.99,0.00,0.00,True,True,True,True,ok
 woodchuck_alarm_vt_whistle_02,woodchuck_alarm,True,95.0,,0.00,1.98,-16.00,-1.10,1.56,16.20,13.60,3.68,0.00,0.00,True,True,True,True,ok
@@ -29,3 +29,7 @@ bird_synth_bellbird_01,bird_synth,False,95.0,,0.00,4.40,-10.10,-1.10,1.25,10.50,
 bird_synth_piha_01,bird_synth,False,95.0,,0.00,4.24,-4.20,-1.10,0.83,3.30,3.70,4.21,0.00,0.00,True,True,True,True,ok
 bird_synth_hawk_scream_01,bird_synth,False,95.0,,0.00,3.60,-7.10,-1.10,1.08,7.00,1.00,1.40,0.00,0.00,True,True,True,True,ok
 bird_synth_falcon_kak_01,bird_synth,False,95.0,,0.00,2.45,-12.00,-1.40,0.81,10.60,-1.00,0.00,0.00,0.00,True,True,True,True,ok
+raptor_snowy_owl_01,raptor,False,95.0,78.0,0.00,1.50,-3.00,-1.40,0.56,5.20,-2.30,3.78,0.00,0.30,True,True,True,True,ok
+raptor_red_shouldered_hawk_02,raptor,False,95.0,78.0,0.00,5.99,-7.10,-1.10,2.58,10.80,19.60,9.70,0.01,0.00,True,True,True,True,ok
+raptor_red_tailed_hawk_03,raptor,False,95.0,78.0,0.00,1.76,-5.10,-1.10,4.85,13.50,14.90,11.93,0.00,0.00,True,True,True,True,ok
+lemur_shriek_ruffed_01,lemur_shriek,False,95.0,,0.00,2.65,-8.10,-1.10,2.85,10.70,7.10,8.30,0.00,0.00,True,True,True,True,ok

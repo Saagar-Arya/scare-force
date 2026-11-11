@@ -1,12 +1,13 @@
 """Sound through the 3.5 mm jack. play(clip) starts a clip in the background and returns at once.
 
 Clips are the sound library's generic set (sound.library in config.yaml, see
-scare/sound_library.py). next_clip() picks one at random for each scare, never the clip the
-previous scare played: with 16 clips, each pick is uniform over the other 15. (Only the last
-clip is left out, not a shuffled cycle: a clip can come back two scares later.)
+scare/sound_library.py). next_clip() asks TypeBag (Nov 10): the sound type first, every type
+before any repeats, weighted by library.yaml type_weights, never the same type twice in a row;
+then the next clip of that type, the clips of a type taking turns.
 
 Every clip is rendered at startup (scare/sound_fill.py) to end at a pause near the scare length
-(controller.scare_seconds, +/- controller.end_window_s), repeating it if it is shorter, or to
+(controller.scare_seconds, +/- controller.end_window_s; a clip already that long plays whole),
+repeating it with a short varied pause (sound.repeat_pause_s) if it is shorter, or to
 fade out where there is no pause (sound.end_fade_s). length(clip) is that render's length: the
 scare's length when that clip plays, which scare/deterrent.py gives the light and the arms too.
 Renders go to RAM (/dev/shm), not the SD card, and are made again every start. Levels unchanged.
@@ -36,7 +37,7 @@ import time
 from pathlib import Path
 
 from . import sound_fill
-from .sound_library import Library
+from .sound_library import Library, TypeBag
 
 
 def _render_dir(profile: str, seconds: float) -> Path:
@@ -66,11 +67,15 @@ class Sound:
               f"{len(self.clips)} generic clips"
               + (f" (skipping {', '.join(library.skip_types)})" if library.skip_types else ""),
               flush=True)
+        self._pause = tuple(float(v) for v in cfg.get("repeat_pause_s", (0.0, 0.0)))
         self.seconds = float(seconds)
         self.renders = self._render(library.profile, float(window_s), float(cfg["end_fade_s"]))
         setpriv = shutil.which("setpriv")
         self._wrap = [setpriv, "--pdeathsig", "TERM"] if setpriv else []
         self._last: Path | None = None  # the clip the previous scare played
+        self.bag = TypeBag(self.clips, lambda p: self.types[p.stem], library.weights)
+        print("[sound] rotation: type first, then clip; type weights " +
+              ", ".join(f"{t} {w}" for t, w in self.bag.weights.items()), flush=True)
         self.proc: subprocess.Popen | None = None
         self.current: Path | None = None
         self.started_t: float | None = None   # monotonic: aplay process started
@@ -97,10 +102,11 @@ class Sound:
                              f"sound.end_fade_s > 0 (got {window_s:g}, {fade_s:g})")
         out_dir = _render_dir(profile, self.seconds)
         t0 = time.monotonic()
-        renders, endings = {}, {"break": 0, "fade": 0}
+        renders, endings = {}, {"break": 0, "fade": 0, "end": 0}
         for clip in self.clips:
             samples, rate = sound_fill.read_wav(clip)
-            r = sound_fill.render(samples, rate, self.seconds, window_s, fade_s)
+            r = sound_fill.render(samples, rate, self.seconds, window_s, fade_s,
+                                  pause_s=self._pause, whole_fit=True)
             path = out_dir / clip.name
             sound_fill.write_wav(path, r.samples, rate)
             renders[clip.stem] = (path, r.audible_s, r.plays, r.ending)
@@ -109,7 +115,7 @@ class Sound:
         print(f"[sound] rendered {len(renders)} clips for {self.seconds:g} s +/- {window_s:g} s "
               f"in {out_dir} ({(time.monotonic() - t0) * 1000:.0f} ms): scares last "
               f"{min(audible):.2f}-{max(audible):.2f} s, {endings['break']} end at a pause, "
-              f"{endings['fade']} fade out", flush=True)
+              f"{endings['fade']} fade out, {endings['end']} play whole", flush=True)
         return renders
 
     def length(self, clip: Path) -> float:
@@ -118,8 +124,7 @@ class Sound:
 
     def next_clip(self) -> Path:
         """The clip the next scare should play."""
-        choices = [c for c in self.clips if c != self._last] or self.clips
-        self._last = random.choice(choices)
+        self._last = self.bag.next()
         return self._last
 
     def play(self, clip: Path | int) -> None:

@@ -5,7 +5,12 @@
                  r.audible_s long, so aplay finishes by itself when the sound does
     r.audible_s  the scare's length for this clip, in [seconds - window_s, seconds + window_s]
     r.plays      how many times the clip starts (1 when it covers the scare by itself)
-    r.ending     "break" (stopped in a quiet moment) or "fade" (faded out)
+    r.ending     "break" (stopped in a quiet moment), "fade" (faded out) or "end" (whole_fit:
+                 the clip already lasts seconds +/- window_s, so it plays whole)
+
+Nov 10 options (scare/sound.py turns them on): whole_fit=True plays a clip that already fits the
+window whole instead of cutting it at a pause; pause_s=(lo, hi) puts a random lo..hi s of silence
+between repeated copies, so a short call sounds like an animal calling again, not a loop.
 
 The sound decides when a scare ends: scare.deterrent ends the light and the arms at the same
 moment, so all three start and stop together.
@@ -114,7 +119,8 @@ def _fade_out(x: np.ndarray, end: int, frames: int) -> None:
 
 
 def render(samples: np.ndarray, rate: int, seconds: float, window_s: float = 0.5,
-           fade_s: float = 0.5) -> Rendered:
+           fade_s: float = 0.5, pause_s=(0.0, 0.0), whole_fit: bool = False,
+           rng=None) -> Rendered:
     if seconds <= 0:
         raise ValueError("seconds must be > 0")
     if not 0 <= window_s < seconds or fade_s <= 0:
@@ -126,8 +132,18 @@ def render(samples: np.ndarray, rate: int, seconds: float, window_s: float = 0.5
     clip_gaps = gaps(samples, rate)
     hop = max(1, round(HOP_S * rate))
 
+    # 0. Nov 10: a clip that already lasts seconds +/- window_s plays whole, ending with itself.
+    if whole_fit and lo <= len(src) <= hi:
+        out = src.copy()
+        _fade_out(out, len(out), click)
+        pcm = np.clip(np.round(out), -32768, 32767).astype(np.int16)
+        return Rendered(pcm, rate, len(out) / rate, 1, "end")
+
     # 1. What one copy is, if the clip has to repeat.
     repeat = len(src) < lo
+    pause_lo, pause_hi = (float(v) for v in pause_s)
+    pauses = repeat and pause_hi > 0  # Nov 10: a short, varied silence between copies
+    rng = rng if rng is not None else np.random.default_rng()
     body = len(src)
     quiet_end = bool(clip_gaps) and clip_gaps[-1][1] >= len(src) - hop  # ends in a pause
     if repeat and not quiet_end:
@@ -147,11 +163,13 @@ def render(samples: np.ndarray, rate: int, seconds: float, window_s: float = 0.5
         out[pos:pos + n] = seg
         copies.append((pos, n))
         pos += n
+        if pauses and pos < hi:
+            pos += round(rng.uniform(pause_lo, pause_hi) * rate)
 
     # 3. Where to stop: the candidate nearest `seconds`.
     quiet = [s + a + click for s, n in copies for a, _ in clip_gaps if a < n]
     ends = [s + n for s, n in copies if n == body]  # copies that play to their end
-    if quiet_end:
+    if quiet_end or pauses:  # a copy followed by a pause ends in silence
         quiet += ends
     quiet = [q for q in quiet if lo <= q <= hi]
     loud_ends = [e for e in ends if lo <= e <= hi] if not quiet_end else []
