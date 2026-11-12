@@ -24,10 +24,10 @@ camera:
                             # +1 = twice as bright). Raise if the image is dark, lower if washed out.
 
 detector:
-  model: models/person_pest_11n_320.onnx
+  model: models/person_pest_11s_320.onnx   # small; nano (about 2-3x faster): person_pest_11n_320.onnx
   labels: models/person_pest_labels.txt
   num_threads: 4
-  conf_threshold: 0.25      # boxes below this are dropped before NMS
+  conf_threshold: 0.15      # boxes below this are dropped before NMS; keep <= controller.min_confidence
   iou_threshold: 0.45       # NMS overlap threshold
 
 light:
@@ -89,10 +89,10 @@ sound:
 
 controller:
   labels: [pest]            # only pest triggers; person does not trigger or block a pest
-  min_confidence: 0.50      # starting threshold; check validation false triggers and recall
+  min_confidence: 0.15      # trigger labels (pest); low = more catches but more false alarms
   person_min_confidence: 0.70  # person boxes below this are dropped (window, counts, logs).
                             # People never trigger or block a scare either way
-  confirm_frames: 3        # require three qualifying frames to reduce one-frame false alarms
+  confirm_frames: 1         # 1 = scare on a single qualifying frame; 3 cuts one-frame false alarms
                             # min_confidence, person_min_confidence and confirm_frames are the
                             # starting values: the debug window has a slider for each (not saved)
   confirm_iou: 0.3          # minimum box overlap to count detections as the same object
