@@ -24,7 +24,8 @@ label_map:
 
 # set -> sound types. Clips are picked by sound_type and played round-robin across types.
 sets:
-  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_synth, raptor, animal_shriek]
+  generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_call, raptor, animal_shriek]
+                                                   # Nov 11: bird_synth -> bird_call (natural piha, D-29)
                                                    # Nov 10: the generic set is the library;
                                                    # species sets below are kept but unused
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
@@ -94,6 +95,7 @@ clips:
     flagged: false
     replace_with_team_recording: true   # recognizable political voice: a distraction in the demo video
     notes: "US presidential weekly radio address (2 min, single male speaker, studio). Excerpt is a continuous 5 s of talking from mid-address (F0 ~95-120 Hz, male). Clean, no music expected in radio addresses; not verified by ear."
+    excluded_reason: "dropped Nov 11 (Nikhil): recognizable voice, a distraction in the demo; off for now"
   - id: human_speech_talk_radio_interview_02
     sound_type: human_speech
     original: originals/human_speech/human_speech_talk_radio_interview_02.flac
@@ -108,6 +110,7 @@ clips:
     flagged: false
     replace_with_team_recording: true   # recognizable political voice: a distraction in the demo video
     notes: "Community talk-radio interview (host Dori Smith, guest Richard Falk), ~30 min. Excerpt from ~11.4 min, chosen as the most continuous 5 s of talking in that region; speaker identity and words not verified by ear. 22.05 kHz source, so bandwidth is limited (~11 kHz), radio-like quality. Topic is political (Gaza/human rights); words in the 5 s cut not checked."
+    excluded_reason: "dropped Nov 11 (Nikhil): recognizable voice, a distraction in the demo; off for now"
 
   # ---- human_shout ----
   - id: human_shout_goal_01
@@ -394,6 +397,7 @@ clips:
     basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
     flagged: false
     notes: "synthetic. Piha-like 'pi-pi-WHEEE-yo' x4: whistle up-slur 1.6 -> 3.8 kHz, falling to 2.0 kHz"
+    excluded_reason: "replaced Nov 11 by bird_call_screaming_piha_01 (natural recording, D-29): synthetic calls sound unnatural (Nikhil)"
   - id: bird_synth_hawk_scream_01
     sound_type: bird_synth
     original: originals/bird_synth/bird_synth_hawk_scream_01.flac
@@ -407,6 +411,7 @@ clips:
     basis: "artificial arm; loud bird-like call chosen by ear (Nov 9 listening, D-24); not a recording of any species, not a predator cue"
     flagged: false
     notes: "synthetic. Hawk-like 'keee-arrr' x3: raspy scream falling 3.0 -> 2.1 kHz"
+    excluded_reason: "replaced Nov 11 by raptor_red_tailed_hawk_05 (natural recording, D-29): synthetic calls sound unnatural (Nikhil)"
   - id: bird_synth_falcon_kak_01
     sound_type: bird_synth
     original: originals/bird_synth/bird_synth_falcon_kak_01.flac
@@ -535,3 +540,51 @@ clips:
     flagged: false
     max_limiter_gr_db: 12.0
     notes: "'Scream of a hawk' (species not given; sound-effect site recording), 3.2 s; repeats once with a pause."
+
+  # ---- Nov 11 (D-29): natural replacements for the synthetic piha and hawk scream, and a loud bark ----
+  # Built with scare-force-plan deterrence/build_sounds.py (main be8f5c7; that repo is retired), profile
+  # pyle_plmr52, level_mode max, 12 dB limiter cap. Originals (cut only) are in originals/ here.
+  # "As played" = the scare render (5 s +/- 1, repeats with 0.25-0.6 s pauses), A-weighted Leq vs siren_hilo_01
+  # with the Nov 11 measuring script (reads ~1 dB lower than the Nov 10 one; same order).
+  - id: bird_call_screaming_piha_01
+    sound_type: bird_call
+    original: originals/bird_call/bird_call_screaming_piha_01.flac
+    source_url: "https://xeno-canto.org/1032443"
+    media_url: "https://xeno-canto.org/1032443/download"
+    author: "Richard E. Webster (xeno-canto XC1032443)"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 96.398, end_s: 98.16}
+    evidence: []
+    basis: "loudness and novelty arm (Screaming Piha, among the loudest bird calls); no cited basis for the target species, like the screams. Replaces the synthetic piha (Nikhil, Nov 11)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Screaming Piha (Lipaugus vociferans) song, Atta Rainforest Lodge, Guyana, 2025-03-19. One clean 'pee...pee-yo' phrase (pee: 1.5 -> 4.5-5.0 kHz, 0.5 s; yo: 4.8 -> 1.6 kHz), SNR ~60 dB. Start cut at the note's loud part so the onset passes (rise 3.3 ms). As played -2.9 dB(A) vs siren hi-lo, 62% sounding (3 repeats). Not yet heard by the team."
+  - id: raptor_red_tailed_hawk_05
+    sound_type: raptor
+    original: originals/raptor/raptor_red_tailed_hawk_05.flac
+    source_url: "https://xeno-canto.org/973856"
+    media_url: "https://xeno-canto.org/973856/download"
+    author: "Richard E. Webster (xeno-canto XC973856)"
+    license: "CC BY-NC-SA 4.0"
+    license_url: "https://creativecommons.org/licenses/by-nc-sa/4.0/"
+    excerpt: {start_s: 1.05, end_s: 2.36}
+    evidence: [126]
+    basis: "raptor call; replaces the synthetic hawk scream (Nikhil, Nov 11)"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Red-tailed Hawk (B. j. calurus) call, San Bernardino NWR, Arizona. One 1.3 s scream, sharp onset then raspy harmonic body ~2.3-3 kHz. Picked from 10 recordings by in-band SNR and as-played level. As played -5.2 dB(A) vs siren hi-lo (screaming_hawk_04: -5.3), 56% sounding. Not yet heard by the team."
+  - id: dog_bark_pack_05
+    sound_type: dog_bark
+    original: originals/dog_bark/dog_bark_pack_05.flac
+    source_url: "https://commons.wikimedia.org/wiki/File:Seis_perros_ladrando.wav ; https://commons.wikimedia.org/wiki/File:Het_blaffen_van_honden_in_een_kennel_of_asiel_-_SoundCloud_-_Beeld_en_Geluid.ogg"
+    media_url: "https://upload.wikimedia.org/wikipedia/commons/e/e0/Seis_perros_ladrando.wav ; https://upload.wikimedia.org/wikipedia/commons/5/5c/Het_blaffen_van_honden_in_een_kennel_of_asiel_-_SoundCloud_-_Beeld_en_Geluid.ogg"
+    author: "Luis Alvaz (six dogs); Beeld en Geluid (kennel); mixed by the Scare Force team"
+    license: "CC BY-SA 4.0 (team mix of CC BY-SA 4.0 and CC BY-SA 3.0 sources; BY-SA 3.0 permits a later version)"
+    license_url: "https://creativecommons.org/licenses/by-sa/4.0/"
+    excerpt: {start_s: 57.5, end_s: 62.5}
+    evidence: [51]
+    basis: "dog barking, raccoon's one cited cue [51]. The Nov 10 single-dog barks were too gappy to be loud (D-26); a pack is dense enough"
+    flagged: false
+    max_limiter_gr_db: 12.0
+    notes: "Team mix: 'Seis perros ladrando' 57.5-62.5 s (six dogs barking in a yard, Zoom H1n) + 0.7 x kennel/shelter chorus 138.25-143.25 s ('Het blaffen van honden in een kennel of asiel'). As played -5.8 dB(A) vs siren hi-lo, sounding the whole scare (old barks: -11.5 to -18, 12-29%; demonic_woman_04: -7.2). The kennel layer is reverberant: judge on the Pyle. Not yet heard by the team."
