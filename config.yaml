@@ -62,8 +62,10 @@ servos:
   range_deg: 270
   flap_deg: 90              # rest -> peak, degrees; every command is clamped to 0..flap_deg
   channels:
-    a: {type: hw, chip: 0, channel: 1, pin: 19, down: 180, up_dir: -1}   # CALIBRATE
-    b: {type: lgpio, pin: 16, down: 0, up_dir: 1}                         # CALIBRATE
+    # Wiring: b = the servo whose arm swung UP out of the T-pose in the old windmill flap; its signal
+    # lead goes to pin 36. If after the move both arms rest pointing UP, move the other servo instead.
+    a: {type: hw, chip: 0, channel: 1, pin: 19, down: 180, up_dir: -1}   # fine-tune on the Pi
+    b: {type: lgpio, pin: 16, down: 0, up_dir: 1}                         # fine-tune on the Pi
 
 sound:
   device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)

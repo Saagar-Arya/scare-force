@@ -110,18 +110,23 @@ class Servos:
             self.chans = {n: {**c, "type": c.get("type", "hw"), "down": cfg["down_angle"],
                               "up_dir": sign} for n, c in chans.items()}
         self.down_angle, self.up_angle = 0.0, self.flap_deg  # offsets: what the controller uses
-        self.pins = [c["pin"] for c in self.chans.values()]
         self.out = {}
-        for name, c in self.chans.items():
+        for i, (name, c) in enumerate(list(self.chans.items())):
             kind = c.get("type", "hw")
             if c.get("up_dir") not in (1, -1):
                 raise ValueError(f"servos.channels.{name}.up_dir must be 1 or -1")
-            if kind in ("hw", "sysfs"):
-                self.out[name] = _Sysfs(c["chip"], c["channel"], scaled=(kind == "hw"))
-            elif kind == "lgpio":
-                self.out[name] = _Lgpio(c["pin"])
-            else:
+            if kind not in ("hw", "sysfs", "lgpio"):
                 raise ValueError(f"servos.channels.{name}.type: hw, sysfs or lgpio (got {kind!r})")
+            try:
+                self.out[name] = (_Lgpio(c["pin"]) if kind == "lgpio" else
+                                  _Sysfs(c["chip"], c["channel"], scaled=(kind == "hw")))
+            except Exception as e:  # first servo must work; a later one may not (never block boot)
+                if i == 0:
+                    raise
+                print(f"[servos] WARNING: servo {name} (GPIO{c['pin']}, {kind}) not driven: "
+                      f"{type(e).__name__}: {e}. The other arm still works.", flush=True)
+                del self.chans[name]
+        self.pins = [c["pin"] for c in self.chans.values()]
         self.has_hw = any(c.get("type", "hw") == "hw" for c in self.chans.values())
         self.scale = 1.0 if not self.has_hw else None  # real PWM clock / what the kernel assumes
         self.checked = 0.0     # time.monotonic() of the last clock check
