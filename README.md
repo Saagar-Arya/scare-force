@@ -147,3 +147,12 @@ repeats and ending.
 
 The species sets (raccoon 12, groundhog 4, squirrel 4) are in the repo but not connected: only
 the generic set plays. `python -m scare.sound_library` checks every set.
+
+## Run at boot (demo, farm test)
+
+`tools/pi_boot.sh <pi-ip> enable` (from the Mac clone) installs `tools/scare-force.service`: on every
+power-up the Pi starts `scare.controller --headless` (detection + deterrence, no window, no commands),
+restarts it 10 s after any crash, and waits up to 20 s for network time first (no RTC). `status`,
+`logs` and `disable` do what they say. On the Pi: `systemctl status scare-force`,
+`journalctl -u scare-force -f`; stop it before a manual or windowed run (`sudo systemctl stop
+scare-force`, then `start`). `tools/pi_update.sh` stops it for an update and starts it again.
