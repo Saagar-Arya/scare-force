@@ -6,7 +6,7 @@ clips added Nov 11 (D-29: `bird_call_screaming_piha_01`, `raptor_red_tailed_hawk
 `dog_bark_pack_05`) have their cut-only originals in `originals/` here; they were built with
 scare-force-plan's `deterrence/build_sounds.py` (main `be8f5c7`), profile pyle_plmr52, level_mode
 max, 12 dB limiter cap. Older clips' originals and the build script stay in scare-force-plan.
-Generic set now: 20 clips. The history below is from Nov 3.
+Generic set now: 18 clips (goal shout and the last speech clip dropped after a listening pass). The history below is from Nov 3.
 
 Everything in this folder is copied, unchanged, from the team's deterrence repo:
 `nikhilmethi/scare-force-plan`, branch `deter/integration`, commit `5301bf3`, folder
