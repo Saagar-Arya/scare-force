@@ -10,12 +10,15 @@ random each time) have passed.
 Detection and switching keep running the whole time. A single two-class model handles each frame.
 Only animal labels can trigger; person predictions never veto an animal.
 Confirmation histories are scoped to each camera.
+controller.person_min_confidence drops weaker person boxes (window, counts, logs).
 Light and sound start and stop through scare/deterrent.py (shared with scare.deter_test), which
 logs one line and one CSV row per scare. Light settings are checked before the cameras open.
 Ctrl+C, SIGTERM, SIGHUP, q / Esc or an error: the lamp is left off, aplay stopped, GPIO released.
 
 Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C stops)
      python -m scare.controller --headless   (no window)
+The debug window has sliders for the min confidence (all trigger labels), the person min confidence
+and confirm frames; moving one applies at once, starting from config.yaml's values (not saved back).
 """
 
 import argparse
@@ -131,12 +134,42 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
     switch_ms = 0.0
     next_note = 0.0       # the "seen but ignored" notes print at most once a second
     feeds = [None] * len(camera.ids)  # per camera, its last (frame, detections, hits, time)
+    # person boxes below this are dropped (window, counts, logs); people never trigger either way
+    person_conf = float(rules.get("person_min_confidence", detector.conf))
+    if not 0 < person_conf <= 1:
+        raise ValueError(f"controller.person_min_confidence must be in (0, 1], got {person_conf}")
     print(f"[controller] watching {', '.join(camera.names)}, min confidence "
           + ", ".join(f"{k} {v}" for k, v in thresholds.items())
-          + f", {rules['confirm_frames']} frame(s) to confirm", flush=True)
+          + f", person {person_conf}, {rules['confirm_frames']} frame(s) to confirm", flush=True)
+
+    detector_conf = detector.conf  # config's floor; a lower slider lowers it to match
+    if not args.headless:
+        raw = rules["min_confidence"]
+        display.add_controls(raw.get("default", min(thresholds.values()))
+                             if isinstance(raw, dict) else raw, person_conf,
+                             rules["confirm_frames"])
+        controls = display.read_controls()
+    announce_at = None    # print slider changes once they settle, not on every step of a drag
 
     servos.down()
     while True:
+        if not args.headless:
+            now_controls = display.read_controls()
+            if now_controls != controls:
+                trigger_c, person_conf, frames = now_controls
+                if trigger_c != controls[0]:  # one value for every trigger label
+                    thresholds.update(dict.fromkeys(thresholds, trigger_c))
+                if frames != controls[2]:
+                    for confirmer in confirmers:
+                        confirmer.frames = frames
+                detector.conf = min(detector_conf, trigger_c, person_conf)
+                controls = now_controls
+                announce_at = time.monotonic() + 1.0
+            if announce_at and time.monotonic() >= announce_at:
+                print(f"[controller] sliders: trigger confidence {controls[0]:.2f} (all trigger "
+                      f"labels), person {controls[1]:.2f}, {controls[2]} frame(s) to confirm",
+                      flush=True)
+                announce_at = None
         switch_t = None
         if len(camera.ids) > 1 and time.monotonic() >= next_switch:
             switch_t = time.monotonic()
@@ -145,7 +178,8 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         if switch_t is not None:  # time the switch up to the new camera's first frame
             switch_ms = (time.monotonic() - switch_t) * 1000
             next_switch = time.monotonic() + c["dwell_seconds"]
-        detections = detector.detect(frame)
+        detections = [det for det in detector.detect(frame)
+                      if det.label != "person" or det.confidence >= person_conf]
         people = [det for det in detections if det.label == "person"]
         animal_detections = [det for det in detections if det.label in rules["labels"]]
         now = time.monotonic()
@@ -226,7 +260,10 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                 f_frame, f_dets, f_hits, f_t = feed
                 age = "live" if live else f"{now - f_t:.1f}s ago"
                 views.append((f"{camera.names[i]}: {age}", f_frame, f_dets, f_hits, live))
-            line2 = f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"
+            line2 = (f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"
+                     f"   person >= {person_conf:.2f}"
+                     f"   trigger: conf >= {min(thresholds.values()):.2f}"
+                     f" x {confirmers[0].frames} frames")
             if len(camera.ids) > 1:
                 line2 += f"   switch {switch_ms:.0f} ms every {c['dwell_seconds']}s"
             if not display.show(views, status, line2):

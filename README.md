@@ -83,6 +83,11 @@ angle, scare/cooldown state, fps. Every scare is a row in `logs/activations.csv`
 .venv/bin/python -m scare.controller --headless  # no window
 ```
 
+The window has three sliders above the feeds: trigger confidence (for every trigger label), person
+confidence (weaker person boxes are dropped; people never trigger) and confirm frames. They start
+at config.yaml's values (`controller.min_confidence`, `person_min_confidence`, `confirm_frames`),
+apply at once and are not saved back.
+
 ## Detection photos and the report
 
 Every confirmed detection saves the frame, an annotated copy (boxes, species, confidence, camera,

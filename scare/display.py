@@ -3,6 +3,7 @@ outputs underneath.
 
 Triggering detections are drawn red, everything else green. Only one camera streams at a time, so
 the others show their last frame, dimmed, with its age in the header.
+Sliders above the feeds set the trigger's and people's min confidence and the confirm frames live.
 """
 
 import cv2
@@ -71,6 +72,39 @@ def show(feeds: list[tuple[str, np.ndarray | None, list[Detection], list[Detecti
                          interpolation=cv2.INTER_AREA)
     cv2.imshow(WINDOW, out)
     return cv2.waitKey(1) & 0xFF not in (ord("q"), 27)
+
+
+CONF_BAR = "trigger conf %"
+PERSON_BAR = "person conf %"
+FRAMES_BAR = "confirm frames"
+CONF_MIN, CONF_MAX = 5, 95
+FRAMES_MAX = 15
+
+
+def _conf_bar(name: str, conf: float) -> None:
+    cv2.createTrackbar(name, WINDOW, min(max(round(conf * 100), CONF_MIN), CONF_MAX),
+                       CONF_MAX, lambda _: None)
+    cv2.setTrackbarMin(name, WINDOW, CONF_MIN)
+
+
+def _read_conf(name: str) -> float:
+    return min(max(cv2.getTrackbarPos(name, WINDOW), CONF_MIN), CONF_MAX) / 100
+
+
+def add_controls(conf: float, person_conf: float, frames: int) -> None:
+    """Sliders above the feeds: trigger and person min confidence (percent), confirm frames."""
+    cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE | cv2.WINDOW_GUI_NORMAL)
+    _conf_bar(CONF_BAR, conf)
+    _conf_bar(PERSON_BAR, person_conf)
+    cv2.createTrackbar(FRAMES_BAR, WINDOW, min(max(frames, 1), FRAMES_MAX), FRAMES_MAX,
+                       lambda _: None)
+    cv2.setTrackbarMin(FRAMES_BAR, WINDOW, 1)
+
+
+def read_controls() -> tuple[float, float, int]:
+    """The sliders now: (trigger min confidence 0-1, person min confidence 0-1, frames >= 1)."""
+    frames = max(cv2.getTrackbarPos(FRAMES_BAR, WINDOW), 1)
+    return _read_conf(CONF_BAR), _read_conf(PERSON_BAR), frames
 
 
 def close() -> None:

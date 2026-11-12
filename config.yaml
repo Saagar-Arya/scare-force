@@ -85,7 +85,11 @@ sound:
 controller:
   labels: [pest]            # only pest triggers; person does not trigger or block a pest
   min_confidence: 0.50      # starting threshold; check validation false triggers and recall
+  person_min_confidence: 0.70  # person boxes below this are dropped (window, counts, logs).
+                            # People never trigger or block a scare either way
   confirm_frames: 3        # require three qualifying frames to reduce one-frame false alarms
+                            # min_confidence, person_min_confidence and confirm_frames are the
+                            # starting values: the debug window has a slider for each (not saved)
   confirm_iou: 0.3          # minimum box overlap to count detections as the same object
   confirmation_gap_seconds: 1.0  # reset stale evidence on return to a camera
   scare_seconds: 5          # how long a scare lasts. Light and sound start together and end
