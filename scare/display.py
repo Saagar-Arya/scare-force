@@ -3,7 +3,8 @@ outputs underneath.
 
 Triggering detections are drawn red, everything else green. Only one camera streams at a time, so
 the others show their last frame, dimmed, with its age in the header.
-Sliders above the feeds set the trigger's and people's min confidence and the confirm frames live.
+Sliders above the feeds set the trigger's and people's min confidence and the confirm frames live,
+and a 0/1 switch turns the IR camera on (off: it shows its first frame, frozen).
 """
 
 import cv2
@@ -77,6 +78,7 @@ def show(feeds: list[tuple[str, np.ndarray | None, list[Detection], list[Detecti
 CONF_BAR = "trigger conf %"
 PERSON_BAR = "person conf %"
 FRAMES_BAR = "confirm frames"
+IR_BAR = "IR camera (0 off, 1 on)"
 CONF_MIN, CONF_MAX = 5, 95
 FRAMES_MAX = 15
 
@@ -91,20 +93,30 @@ def _read_conf(name: str) -> float:
     return min(max(cv2.getTrackbarPos(name, WINDOW), CONF_MIN), CONF_MAX) / 100
 
 
-def add_controls(conf: float, person_conf: float, frames: int) -> None:
-    """Sliders above the feeds: trigger and person min confidence (percent), confirm frames."""
+_has_ir = False
+
+
+def add_controls(conf: float, person_conf: float, frames: int, ir_on: bool | None = None) -> None:
+    """Sliders above the feeds: trigger and person min confidence (percent), confirm frames, and
+    an IR camera on/off switch (0/1) unless ir_on is None (no IR camera)."""
+    global _has_ir
     cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE | cv2.WINDOW_GUI_NORMAL)
     _conf_bar(CONF_BAR, conf)
     _conf_bar(PERSON_BAR, person_conf)
     cv2.createTrackbar(FRAMES_BAR, WINDOW, min(max(frames, 1), FRAMES_MAX), FRAMES_MAX,
                        lambda _: None)
     cv2.setTrackbarMin(FRAMES_BAR, WINDOW, 1)
+    _has_ir = ir_on is not None
+    if _has_ir:
+        cv2.createTrackbar(IR_BAR, WINDOW, int(ir_on), 1, lambda _: None)
 
 
-def read_controls() -> tuple[float, float, int]:
-    """The sliders now: (trigger min confidence 0-1, person min confidence 0-1, frames >= 1)."""
+def read_controls() -> tuple[float, float, int, bool | None]:
+    """The sliders now: (trigger min confidence 0-1, person min confidence 0-1, frames >= 1,
+    IR on, or None without an IR switch)."""
     frames = max(cv2.getTrackbarPos(FRAMES_BAR, WINDOW), 1)
-    return _read_conf(CONF_BAR), _read_conf(PERSON_BAR), frames
+    ir = cv2.getTrackbarPos(IR_BAR, WINDOW) == 1 if _has_ir else None
+    return _read_conf(CONF_BAR), _read_conf(PERSON_BAR), frames, ir
 
 
 def close() -> None:

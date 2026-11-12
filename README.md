@@ -87,6 +87,9 @@ The window has three sliders above the feeds: trigger confidence (for every trig
 confidence (weaker person boxes are dropped; people never trigger) and confirm frames. They start
 at config.yaml's values (`controller.min_confidence`, `person_min_confidence`, `confirm_frames`),
 apply at once and are not saved back.
+The IR camera (`camera.ir_models`, the IMX219) streams once at startup for a first frame and then
+stays frozen while only the two regular cameras switch, until the window's IR switch (fourth
+slider, 0/1) or `camera.ir_on: true` turns it on.
 
 ## Detection photos and the report
 

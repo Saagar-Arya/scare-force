@@ -11,6 +11,8 @@ Detection and switching keep running the whole time. A single two-class model ha
 Only animal labels can trigger; person predictions never veto an animal.
 Confirmation histories are scoped to each camera.
 controller.person_min_confidence drops weaker person boxes (window, counts, logs).
+IR cameras (camera.ir_models) stream once for a first frame, then are skipped (frame frozen)
+unless camera.ir_on or the window's IR switch turns them on.
 Light and sound start and stop through scare/deterrent.py (shared with scare.deter_test), which
 logs one line and one CSV row per scare. Light settings are checked before the cameras open.
 Ctrl+C, SIGTERM, SIGHUP, q / Esc or an error: the lamp is left off, aplay stopped, GPIO released.
@@ -142,12 +144,28 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
           + ", ".join(f"{k} {v}" for k, v in thresholds.items())
           + f", person {person_conf}, {rules['confirm_frames']} frame(s) to confirm", flush=True)
 
+    # IR cameras (camera.ir_models): each streams once at startup for a first frame, then is
+    # skipped (its frame stays frozen) unless IR is on (camera.ir_on, or the window's switch)
+    ir = {i for i, m in enumerate(getattr(camera, "models", [])) if m in c.get("ir_models", [])}
+    ir_on = bool(c.get("ir_on", True))
+    if ir:
+        print(f"[controller] IR camera(s) {', '.join(camera.names[i] for i in sorted(ir))}: "
+              f"{'on' if ir_on else 'off (first frame only)'}", flush=True)
+
+    def next_camera() -> int:
+        """The next camera in switching order, skipping IR ones that are off and have a frame."""
+        for step in range(1, len(camera.ids) + 1):
+            j = (camera.current + step) % len(camera.ids)
+            if ir_on or j not in ir or feeds[j] is None:
+                return j
+        return camera.current
+
     detector_conf = detector.conf  # config's floor; a lower slider lowers it to match
     if not args.headless:
         raw = rules["min_confidence"]
         display.add_controls(raw.get("default", min(thresholds.values()))
                              if isinstance(raw, dict) else raw, person_conf,
-                             rules["confirm_frames"])
+                             rules["confirm_frames"], ir_on if ir else None)
         controls = display.read_controls()
     announce_at = None    # print slider changes once they settle, not on every step of a drag
 
@@ -156,24 +174,26 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         if not args.headless:
             now_controls = display.read_controls()
             if now_controls != controls:
-                trigger_c, person_conf, frames = now_controls
+                trigger_c, person_conf, frames, ir_switch = now_controls
                 if trigger_c != controls[0]:  # one value for every trigger label
                     thresholds.update(dict.fromkeys(thresholds, trigger_c))
                 if frames != controls[2]:
                     for confirmer in confirmers:
                         confirmer.frames = frames
+                if ir_switch is not None:
+                    ir_on = ir_switch
                 detector.conf = min(detector_conf, trigger_c, person_conf)
                 controls = now_controls
                 announce_at = time.monotonic() + 1.0
             if announce_at and time.monotonic() >= announce_at:
                 print(f"[controller] sliders: trigger confidence {controls[0]:.2f} (all trigger "
-                      f"labels), person {controls[1]:.2f}, {controls[2]} frame(s) to confirm",
-                      flush=True)
+                      f"labels), person {controls[1]:.2f}, {controls[2]} frame(s) to confirm"
+                      + (f", IR {'on' if ir_on else 'off'}" if ir else ""), flush=True)
                 announce_at = None
         switch_t = None
         if len(camera.ids) > 1 and time.monotonic() >= next_switch:
             switch_t = time.monotonic()
-            camera.select((camera.current + 1) % len(camera.ids))
+            camera.select(next_camera())  # no-op if it is the open camera already
         frame = camera.read()
         if switch_t is not None:  # time the switch up to the new camera's first frame
             switch_ms = (time.monotonic() - switch_t) * 1000
@@ -189,6 +209,8 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         ]
         hits = confirmers[camera.current].update(hits, now)
         feeds[camera.current] = (frame, detections, hits, now)
+        if camera.current in ir and not ir_on:  # IR off: first frame kept, move on now
+            next_switch = 0.0
 
         if hits and now >= quiet_until:
             best = hits[0]
@@ -258,7 +280,8 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                     views.append((f"{camera.names[i]}: waiting", None, [], [], False))
                     continue
                 f_frame, f_dets, f_hits, f_t = feed
-                age = "live" if live else f"{now - f_t:.1f}s ago"
+                age = ("live" if live else "IR off, frozen" if i in ir and not ir_on
+                       else f"{now - f_t:.1f}s ago")
                 views.append((f"{camera.names[i]}: {age}", f_frame, f_dets, f_hits, live))
             line2 = (f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"
                      f"   person >= {person_conf:.2f}"

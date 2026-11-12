@@ -37,6 +37,7 @@ class Camera:
             self.names.append(f"camera {n} ({port}{info[n]['Model']})")
         self.models = [info[n]["Model"] for n in self.ids]
         self.sensor_modes = {k: tuple(v) for k, v in (cfg.get("sensor_modes") or {}).items()}
+        self.tunings = dict(cfg.get("tunings") or {})  # model -> libcamera tuning file name
         for n in ids:
             if n not in found:
                 print(f"[camera] camera {n} not found (have {found}), skipping it", flush=True)
@@ -58,7 +59,9 @@ class Camera:
 
         if self.cam is not None:
             self.cam.close()
-        self.cam = Picamera2(self.ids[i])
+        tuning = self.tunings.get(self.models[i])
+        self.cam = Picamera2(self.ids[i],
+                             tuning=Picamera2.load_tuning_file(tuning) if tuning else None)
         mode = self.sensor_modes.get(self.models[i])
         self.cam.configure(
             self.cam.create_preview_configuration(main={"size": self.size, "format": "RGB888"},

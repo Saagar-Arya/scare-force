@@ -14,6 +14,11 @@ camera:
   # unused); 1640x1232 is the 2x2-binned full sensor.
   sensor_modes:
     imx219: [1640, 1232]
+  tunings:                  # libcamera tuning file per model; unlisted models use the default
+    imx219: imx219_noir.json  # the IR-CUT module sees near-IR; the plain tuning leaves it pink
+  ir_models: [imx219]       # sensor models that count as IR cameras (the IMX219-160 IR-CUT)
+  ir_on: false              # off: an IR camera streams once for a first frame, then is skipped
+                            # (frame frozen) and only the others switch; the window has a switch
   dwell_seconds: 5.0        # watch each camera this long, then switch (a switch takes ~0.5 s)
   exposure_value: 1.5       # auto-exposure brightness, in stops (-8..8; 0 = libcamera default,
                             # +1 = twice as bright). Raise if the image is dark, lower if washed out.
