@@ -17,6 +17,13 @@ Light and sound start and stop through scare/deterrent.py (shared with scare.det
 logs one line and one CSV row per scare. Light settings are checked before the cameras open.
 Ctrl+C, SIGTERM, SIGHUP, q / Esc or an error: the lamp is left off, aplay stopped, GPIO released.
 
+Night mode (night.start in config.yaml, or the window's NIGHT switch): the IR camera alone watches
+for motion (scare/motion.py, no model). Motion turns the lamp on steadily and the regular cameras
+take turns with the detector for night.look_seconds; a confirmed pest gets the usual scare, after
+which the lamp is back on steady; each pest sighting restarts the look time. With no pest the lamp
+goes off and the IR camera watches again. The night window has its own sliders (motion threshold,
+min area, persist frames); every motion event is a row in logs/motion/<date>/events.csv + a photo.
+
 Run: python -m scare.controller              (debug window; q / Esc / Ctrl+C stops)
      python -m scare.controller --headless   (no window)
 The debug window has sliders for the min confidence (all trigger labels), the person min confidence
@@ -27,6 +34,8 @@ import argparse
 import random
 import time
 
+import numpy as np
+
 from . import ROOT, load_config
 from .activation_log import ActivationLog
 from .camera import Camera
@@ -35,6 +44,7 @@ from .detector import Detector
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
 from .detection_log import DetectionLog
 from .light import Light
+from .motion import MotionDetector, MotionLog, draw
 from .servos import Servos
 from .sound import Sound
 
@@ -153,28 +163,83 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
               f"{'on' if ir_on else 'off (first frame only)'}", flush=True)
 
     def next_camera() -> int:
-        """The next camera in switching order, skipping IR ones that are off and have a frame."""
+        """The next camera in switching order, skipping IR ones that have a frame and are off
+        (or it is night, when the IR camera only watches for motion)."""
         for step in range(1, len(camera.ids) + 1):
             j = (camera.current + step) % len(camera.ids)
-            if ir_on or j not in ir or feeds[j] is None:
+            if (ir_on and not night) or j not in ir or feeds[j] is None:
                 return j
         return camera.current
 
+    # night mode: the IR camera watches for motion; motion -> lamp on, regular cameras look
+    n = cfg.get("night") or {}
+    nm = n.get("motion") or {}
+    motion = MotionDetector(nm.get("threshold", 25), nm.get("min_area_pct", 0.5),
+                            nm.get("persist_frames", 3))
+    mlog = MotionLog(ROOT)
+    warmup_s = float(nm.get("warmup_s", 2.0))   # IR exposure settles, then locks
+    look_s = float(n.get("look_seconds", 15))
+    ir_i = min(ir) if ir else None
+    night = bool(n.get("start", False))
+    if night and ir_i is None:
+        print("[controller] night.start: no IR camera, staying in day mode", flush=True)
+        night = False
+    phase = "watch"       # at night: "watch" (IR motion) or "look" (lamp on, regular cameras)
+    look_until = 0.0
+    watch_t0 = None       # when the IR camera started watching (warm-up, then exposure lock)
+    exp_locked = False
+    lamp_on = False       # the lamp is on for looking (not for a scare)
+    next_lux_print = 0.0
+
+    def lamp(on: bool) -> None:
+        nonlocal lamp_on
+        lamp_on = on
+        if deterrent.light is not None:
+            deterrent.light.on() if on else deterrent.light.off()
+
+    if ir_i is not None:
+        print(f"[controller] mode: {'NIGHT' if night else 'day'}; night: motion threshold "
+              f"{motion.threshold}, min area {motion.min_area_pct}%, {motion.persist} frame(s), "
+              f"look {look_s:g} s", flush=True)
+
     detector_conf = detector.conf  # config's floor; a lower slider lowers it to match
-    if not args.headless:
-        raw = rules["min_confidence"]
-        display.add_controls(raw.get("default", min(thresholds.values()))
-                             if isinstance(raw, dict) else raw, person_conf,
-                             rules["confirm_frames"], ir_on if ir else None)
+    controls = ncontrols = None
+
+    def day_window() -> None:
+        nonlocal controls
+        display.add_controls(min(thresholds.values()), person_conf, confirmers[0].frames,
+                             ir_on if ir else None, night_switch=ir_i is not None)
         controls = display.read_controls()
+
+    def night_window() -> None:
+        nonlocal ncontrols
+        display.add_night_controls(motion.threshold, motion.min_area_pct, motion.persist)
+        ncontrols = display.read_night_controls()
+
+    if not args.headless:
+        night_window() if night else day_window()
     announce_at = None    # print slider changes once they settle, not on every step of a drag
 
     servos.down()
     while True:
-        if not args.headless:
+        want_night = night
+        if not args.headless and night:
+            now_n = display.read_night_controls()
+            if now_n != ncontrols:
+                want_night, motion.threshold, motion.min_area_pct, motion.persist = now_n
+                if now_n[1:] != ncontrols[1:]:
+                    announce_at = time.monotonic() + 1.0
+                ncontrols = now_n
+            if announce_at and time.monotonic() >= announce_at:
+                print(f"[controller] night sliders: motion threshold {motion.threshold}, min area "
+                      f"{motion.min_area_pct:.1f}%, {motion.persist} frame(s)", flush=True)
+                announce_at = None
+        elif not args.headless:
             now_controls = display.read_controls()
             if now_controls != controls:
-                trigger_c, person_conf, frames, ir_switch = now_controls
+                trigger_c, person_conf, frames, ir_switch, night_switch = now_controls
+                if night_switch is not None:
+                    want_night = night_switch
                 if trigger_c != controls[0]:  # one value for every trigger label
                     thresholds.update(dict.fromkeys(thresholds, trigger_c))
                 if frames != controls[2]:
@@ -190,6 +255,62 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                       f"labels), person {controls[1]:.2f}, {controls[2]} frame(s) to confirm"
                       + (f", IR {'on' if ir_on else 'off'}" if ir else ""), flush=True)
                 announce_at = None
+        if want_night != night:
+            night, phase, watch_t0 = want_night, "watch", None
+            motion.reset()
+            motion.event = None
+            print(f"[controller] mode: {'NIGHT (IR motion watch)' if night else 'day'}", flush=True)
+            if not night:
+                if lamp_on and not scare_until:
+                    lamp(False)
+                lamp_on = False
+                next_switch = 0.0   # back to the regular cameras
+            if not args.headless:
+                night_window() if night else day_window()
+
+        if night and phase == "watch" and not scare_until:
+            if camera.current != ir_i or watch_t0 is None:
+                camera.select(ir_i)
+                watch_t0, exp_locked = time.monotonic(), False
+                motion.reset()
+            frame, md = camera.read_meta()
+            now = time.monotonic()
+            if not exp_locked and now - watch_t0 >= warmup_s:
+                camera.lock_exposure(md)   # auto-exposure drifting would look like motion
+                exp_locked = True
+                motion.reset()
+            r = motion.update(frame, now, armed=exp_locked)
+            feeds[ir_i] = (frame, [], [], now)
+            fps = 0.9 * fps + 0.1 / max(now - last_frame_t, 1e-6)
+            last_frame_t = now
+            lux = md.get("Lux", float("nan"))
+            if r.started:
+                ev = motion.event
+                photo = mlog.photo(np.ascontiguousarray(frame[..., ::-1]), r)
+                mlog.write(ev, md, photo, f"lamp on, look {look_s:g} s")
+                print(f"[controller] NIGHT MOTION: {camera.names[ir_i]} {r.area_pct:.1f}% of the "
+                      f"frame at {ev['box']}, lux {lux:.0f}: lamp on, regular cameras look "
+                      f"{look_s:g} s", flush=True)
+                motion.event = None
+                lamp(True)
+                phase, look_until, next_switch, watch_t0 = "look", now + look_s, 0.0, None
+            if args.headless:
+                if now >= next_lux_print:
+                    print(f"[controller] night watch: {fps:.0f} fps, lux {lux:.0f}", flush=True)
+                    next_lux_print = now + 60
+                continue
+            exp = f"exp {md.get('ExposureTime', 0) / 1000:.1f} ms gain {md.get('AnalogueGain', 0):.2f}"
+            line1 = ("MOTION: lamp on" if r.started else "candidate" if r.boxes
+                     else "warming up" if not exp_locked else "watching for motion")
+            line2 = (f"{fps:.0f} fps   changed {100 * r.changed:.1f}%   lux {lux:.0f}   {exp} "
+                     f"{'locked' if exp_locked else 'auto'}   motion: threshold {motion.threshold}, "
+                     f"min {motion.min_area_pct:.1f}%, {motion.persist} frame(s)   "
+                     f"look {look_s:g} s")
+            if not display.show_night(draw(np.ascontiguousarray(frame[..., ::-1]), r),
+                                      f"NIGHT  {camera.names[ir_i]}: motion watch",
+                                      f"NIGHT   {line1}", line2, bool(r.boxes)):
+                return
+            continue
         switch_t = None
         if len(camera.ids) > 1 and time.monotonic() >= next_switch:
             switch_t = time.monotonic()
@@ -209,8 +330,10 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
         ]
         hits = confirmers[camera.current].update(hits, now)
         feeds[camera.current] = (frame, detections, hits, now)
-        if camera.current in ir and not ir_on:  # IR off: first frame kept, move on now
+        if camera.current in ir and (not ir_on or night):  # IR off: first frame kept, move on
             next_switch = 0.0
+        if night and phase == "look" and hits:   # a pest in view: keep looking
+            look_until = max(look_until, now + look_s)
 
         if hits and now >= quiet_until:
             best = hits[0]
@@ -255,6 +378,13 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
             deterrent.end("timeout")  # its timer already ended light and sound; this logs it
             servos.ramp(servos.down_angle, rules["return_deg_per_s"])
             servo_up = False
+            if night and phase == "look":
+                lamp(True)   # the scare's flashes ended with the light off: steady again
+        if night and phase == "look" and not scare_until and now >= look_until:
+            print(f"[controller] night: no pest for {look_s:g} s, lamp off, IR watches again",
+                  flush=True)
+            lamp(False)
+            phase = "watch"
 
         fps = 0.9 * fps + 0.1 / max(now - last_frame_t, 1e-6)
         last_frame_t = now
@@ -266,10 +396,13 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                 state = f"cooldown {quiet_until - now:.1f}s"
             else:
                 state = "watching"
+            if night and phase == "look" and not scare_until:
+                state = f"NIGHT look {max(0.0, look_until - now):.0f}s"
             status = [
                 ("sound", sound.current.name if sound.is_playing() else "off",
                  sound.is_playing()),
-                ("light", "ON" if scare_until else "off", bool(scare_until)),
+                ("light", "ON" if scare_until else "ON (night look)" if lamp_on else "off",
+                 bool(scare_until) or lamp_on),
                 ("servo", "off" if angle is None else f"{angle:.0f} deg", servo_up),
                 ("state", state, bool(scare_until)),
             ]
@@ -280,7 +413,8 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
                     views.append((f"{camera.names[i]}: waiting", None, [], [], False))
                     continue
                 f_frame, f_dets, f_hits, f_t = feed
-                age = ("live" if live else "IR off, frozen" if i in ir and not ir_on
+                age = ("live" if live else "night motion watch" if i in ir and night
+                       else "IR off, frozen" if i in ir and not ir_on
                        else f"{now - f_t:.1f}s ago")
                 views.append((f"{camera.names[i]}: {age}", f_frame, f_dets, f_hits, live))
             line2 = (f"{fps:.1f} fps   {len(detections)} objects   {len(hits)} confirmed animals"

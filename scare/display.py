@@ -5,6 +5,10 @@ Triggering detections are drawn red, everything else green. Only one camera stre
 the others show their last frame, dimmed, with its age in the header.
 Sliders above the feeds set the trigger's and people's min confidence and the confirm frames live,
 and a 0/1 switch turns the IR camera on (off: it shows its first frame, frozen).
+
+Night mode (the NIGHT switch, top slider in both views) is a different window: the IR camera's
+motion watch (show_night) with its own sliders (motion threshold, min area, persist frames).
+Switching rebuilds the window with the other set of sliders; values are kept by the controller.
 """
 
 import cv2
@@ -93,30 +97,80 @@ def _read_conf(name: str) -> float:
     return min(max(cv2.getTrackbarPos(name, WINDOW), CONF_MIN), CONF_MAX) / 100
 
 
-_has_ir = False
+NIGHT_BAR = "NIGHT (0 day, 1 night)"
+M_THRESH_BAR, M_AREA_BAR, M_PERSIST_BAR = "motion threshold", "min area 0.1%", "persist frames"
+_bars: set = set()   # the trackbars the window has now
 
 
-def add_controls(conf: float, person_conf: float, frames: int, ir_on: bool | None = None) -> None:
-    """Sliders above the feeds: trigger and person min confidence (percent), confirm frames, and
-    an IR camera on/off switch (0/1) unless ir_on is None (no IR camera)."""
-    global _has_ir
+def _bar(name: str, value: int, top: int, bottom: int = 0) -> None:
+    cv2.createTrackbar(name, WINDOW, min(max(value, bottom), top), top, lambda _: None)
+    if bottom:
+        cv2.setTrackbarMin(name, WINDOW, bottom)
+    _bars.add(name)
+
+
+def _new_window() -> None:
+    """A fresh window (OpenCV can't remove trackbars, so a mode switch rebuilds it)."""
+    if _bars:
+        cv2.destroyWindow(WINDOW)
+        cv2.waitKey(1)
+    _bars.clear()
     cv2.namedWindow(WINDOW, cv2.WINDOW_AUTOSIZE | cv2.WINDOW_GUI_NORMAL)
+
+
+def add_controls(conf: float, person_conf: float, frames: int, ir_on: bool | None = None,
+                 night_switch: bool = False) -> None:
+    """The day window's sliders: the NIGHT switch (if night_switch), trigger and person min
+    confidence (percent), confirm frames, and an IR camera on/off switch (0/1) unless ir_on is
+    None (no IR camera)."""
+    _new_window()
+    if night_switch:
+        _bar(NIGHT_BAR, 0, 1)
     _conf_bar(CONF_BAR, conf)
     _conf_bar(PERSON_BAR, person_conf)
-    cv2.createTrackbar(FRAMES_BAR, WINDOW, min(max(frames, 1), FRAMES_MAX), FRAMES_MAX,
-                       lambda _: None)
-    cv2.setTrackbarMin(FRAMES_BAR, WINDOW, 1)
-    _has_ir = ir_on is not None
-    if _has_ir:
-        cv2.createTrackbar(IR_BAR, WINDOW, int(ir_on), 1, lambda _: None)
+    _bars.update((CONF_BAR, PERSON_BAR))
+    _bar(FRAMES_BAR, frames, FRAMES_MAX, 1)
+    if ir_on is not None:
+        _bar(IR_BAR, int(ir_on), 1)
 
 
-def read_controls() -> tuple[float, float, int, bool | None]:
-    """The sliders now: (trigger min confidence 0-1, person min confidence 0-1, frames >= 1,
-    IR on, or None without an IR switch)."""
+def read_controls() -> tuple[float, float, int, bool | None, bool | None]:
+    """The day sliders now: (trigger min confidence 0-1, person min confidence 0-1, frames >= 1,
+    IR on or None without an IR switch, night or None without a NIGHT switch)."""
     frames = max(cv2.getTrackbarPos(FRAMES_BAR, WINDOW), 1)
-    ir = cv2.getTrackbarPos(IR_BAR, WINDOW) == 1 if _has_ir else None
-    return _read_conf(CONF_BAR), _read_conf(PERSON_BAR), frames, ir
+    ir = cv2.getTrackbarPos(IR_BAR, WINDOW) == 1 if IR_BAR in _bars else None
+    night = cv2.getTrackbarPos(NIGHT_BAR, WINDOW) == 1 if NIGHT_BAR in _bars else None
+    return _read_conf(CONF_BAR), _read_conf(PERSON_BAR), frames, ir, night
+
+
+def add_night_controls(threshold: int, min_area_pct: float, persist: int) -> None:
+    """The night window's sliders: the NIGHT switch (on), motion threshold (grey levels 5-80),
+    min area (0.1% steps of the frame) and persist frames."""
+    _new_window()
+    _bar(NIGHT_BAR, 1, 1)
+    _bar(M_THRESH_BAR, threshold, 80, 5)
+    _bar(M_AREA_BAR, round(min_area_pct * 10), 100, 1)
+    _bar(M_PERSIST_BAR, persist, 10, 1)
+
+
+def read_night_controls() -> tuple[bool, int, float, int]:
+    """The night sliders now: (night, motion threshold, min area %, persist frames)."""
+    return (cv2.getTrackbarPos(NIGHT_BAR, WINDOW) == 1,
+            max(cv2.getTrackbarPos(M_THRESH_BAR, WINDOW), 5),
+            max(cv2.getTrackbarPos(M_AREA_BAR, WINDOW), 1) / 10,
+            max(cv2.getTrackbarPos(M_PERSIST_BAR, WINDOW), 1))
+
+
+def show_night(view_bgr: np.ndarray, title: str, line1: str, line2: str, alert: bool) -> bool:
+    """The night watch view: one feed (already drawn, BGR) under a NIGHT header, two status lines
+    (red when alert). Returns False on q/Esc."""
+    head = np.zeros((HEAD_H, view_bgr.shape[1], 3), np.uint8)
+    cv2.putText(head, title, (8, 18), FONT, 0.55, YELLOW, 1, cv2.LINE_AA)
+    bar = np.zeros((BAR_H, view_bgr.shape[1], 3), np.uint8)
+    cv2.putText(bar, line1, (8, 22), FONT, 0.55, RED if alert else YELLOW, 1, cv2.LINE_AA)
+    cv2.putText(bar, line2, (8, 46), FONT, 0.5, WHITE, 1, cv2.LINE_AA)
+    cv2.imshow(WINDOW, np.vstack([head, view_bgr, bar]))
+    return cv2.waitKey(1) & 0xFF not in (ord("q"), 27)
 
 
 def close() -> None:

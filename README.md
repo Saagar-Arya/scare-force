@@ -91,6 +91,27 @@ The IR camera (`camera.ir_models`, the IMX219) streams once at startup for a fir
 stays frozen while only the two regular cameras switch, until the window's IR switch (fourth
 slider, 0/1) or `camera.ir_on: true` turns it on.
 
+### Day and night
+
+The top slider, **NIGHT**, switches the window between two views (headless runs use
+`night.start` in config.yaml):
+
+- **Day (0):** the view above: the regular cameras take turns with the detector.
+- **Night (1):** the IR camera alone watches for motion (scare/motion.py: background difference,
+  no model). Motion turns the lamp on steadily and the regular cameras take turns with the detector
+  for `night.look_seconds` (15 s); a pest in view restarts that time, and a confirmed pest gets the
+  usual scare, after which the lamp is steady again. With no pest the lamp goes off and the IR
+  camera watches again. The night window has its own sliders: motion threshold, min area and
+  persist frames (`night.motion`). Every motion event is a row in `logs/motion/<date>/events.csv`
+  with a photo.
+
+Testing the motion detection alone (no detector, lamp, sound or servos; stop the controller first):
+
+```
+.venv/bin/python -m scare.motion_watch             # IR feed with motion boxes and sliders
+.venv/bin/python -m scare.motion_watch --headless  # terminal only, e.g. outside at night
+```
+
 ## Detection photos and the report
 
 Every confirmed detection saves the frame, an annotated copy (boxes, species, confidence, camera,

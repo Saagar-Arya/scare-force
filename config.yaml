@@ -110,6 +110,18 @@ controller:
   cooldown_jitter_s: 3      # Nov 10: each cooldown is cooldown_seconds +/- this, at random (7-13 s):
                             # varied timing slows habituation
 
+night:
+  # Night mode: the IR camera alone watches for motion (no model); motion turns the lamp on steadily
+  # and the regular cameras take turns with the detector for look_seconds (a pest in view restarts
+  # it; a confirmed pest gets the usual scare). The debug window's NIGHT switch flips day/night live.
+  start: false              # true: start in night mode (headless runs use this; no switch there)
+  look_seconds: 15          # lamp on and regular cameras checked this long after motion
+  motion:                   # the night window has a slider for each of the first three
+    threshold: 25           # grey-level change (0-255) for a pixel to count as changed
+    min_area_pct: 0.5       # smallest changed blob that counts, % of the frame
+    persist_frames: 3       # frames in a row with motion before it counts (~0.1 s at 30 fps)
+    warmup_s: 2.0           # after the IR camera opens: exposure settles, then locks
+
 log:
   # One CSV row per scare, written when it ends (columns: see scare/activation_log.py).
   # Relative to the repo folder. null = no file, terminal output only.

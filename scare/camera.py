@@ -75,6 +75,24 @@ class Camera:
         # picamera2's "RGB888" is BGR in memory; flip to RGB
         return self.cam.capture_array()[..., ::-1].copy()
 
+    def read_meta(self) -> tuple[np.ndarray, dict]:
+        """One RGB frame and its metadata (Lux, ExposureTime in us, AnalogueGain, ...)."""
+        req = self.cam.capture_request()
+        try:
+            return req.make_array("main")[..., ::-1].copy(), req.get_metadata()
+        finally:
+            req.release()
+
+    def lock_exposure(self, md: dict) -> None:
+        """Fix exposure time and gain at md's values (white balance stays automatic), so the
+        camera's own brightness changes don't look like motion. Lasts until the camera is
+        reopened (select) or auto_exposure()."""
+        self.cam.set_controls({"AeEnable": False, "ExposureTime": int(md["ExposureTime"]),
+                               "AnalogueGain": float(md["AnalogueGain"])})
+
+    def auto_exposure(self) -> None:
+        self.cam.set_controls({"AeEnable": True})
+
     def close(self) -> None:
         if self.cam is not None:
             self.cam.close()
