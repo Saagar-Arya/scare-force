@@ -156,3 +156,22 @@ restarts it 10 s after any crash, and waits up to 20 s for network time first (n
 `logs` and `disable` do what they say. On the Pi: `systemctl status scare-force`,
 `journalctl -u scare-force -f`; stop it before a manual or windowed run (`sudo systemctl stop
 scare-force`, then `start`). `tools/pi_update.sh` stops it for an update and starts it again.
+
+## Operating it without a computer (demo, farm)
+
+Once the boot service is enabled (above):
+- **On:** switch power on at the power controller. The Pi boots and starts detection + deterrence by
+  itself in about a minute; the lamp flashes twice (`controller.ready_flashes`) when it is live
+  (only if the deterrent switch is on). Detection works either way.
+- **Deterrents off, detection on:** the deterrent switch (lamp, relay board).
+- **Off:** switch power off at the controller. There is no clean shutdown: log rows are fsynced as
+  they are written, so at most the photo being saved is lost, but a hard power cut can (rarely)
+  corrupt the SD card. Keep a backup image of the card from before the farm test.
+- No network at the farm means no network time: see `clock_synced` in detections.csv.
+
+## Arms (Nov 11)
+
+Rest = arms down; a scare flaps them up `servos.flap_deg` (~90, peak about a T-pose) and back, as
+mirror images. Each servo has its own signal: "a" on GPIO19 (pin 35, hardware PWM), "b" on GPIO16
+(pin 36, software PWM). Each has its own `down` angle and `up_dir`, calibrated on the Pi with
+`python -m scare.servos cal NAME DEG`; check with `python -m scare.servos` and `... flap`.

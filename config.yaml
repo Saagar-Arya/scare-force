@@ -49,18 +49,21 @@ light:
   relay_min_toggle_s: 0.15  # shortest allowed relay on or off time; 0.15 is the floor (can only go up)
 
 servos:
-  # Hardware PWM: needs `dtoverlay=pwm,pin=19,func=2` in /boot/firmware/config.txt (channel 1 on
-  # GPIO19). Both servos always get the same angle, so their signal wires share GPIO19 through a
-  # Y cable. GPIO18 is the camera adapter's, and GPIO12/13 read as stuck at ground with the
-  # adapter fitted. Miuzei 25 kg 270-degree servos: min_us -> 0 deg, max_us -> range_deg, so the
-  # centre is 135 deg.
+  # Nov 11 (Nikhil): arms rest DOWN and flap up about flap_deg to the peak, as mirror images.
+  # Each servo has its own signal (the old Y cable on GPIO19 made them windmill): servo "a" stays
+  # on GPIO19 (pin 35, hardware PWM); servo "b"'s signal lead moves to GPIO16 (pin 36).
+  # type: hw (hardware PWM) | sysfs (dtoverlay=pwm-gpio,gpio=16: set chip to its pwmchip number)
+  #       | lgpio (software PWM, no overlay). See scare/servos.py.
+  # down / up_dir are PLACEHOLDERS until calibrated on the Pi (python -m scare.servos cal NAME DEG):
+  # the arms held a T-pose at 90 deg before, so down is about 90 -/+ 90 and the peak ~ T-pose.
+  # Miuzei 25 kg 270-degree servos: min_us -> 0 deg, max_us -> range_deg (centre 135).
   min_us: 500
   max_us: 2500
   range_deg: 270
-  up_angle: 180             # TODO: tune on the hardware (centre +/- 45 for now)
-  down_angle: 90
+  flap_deg: 90              # rest -> peak, degrees; every command is clamped to 0..flap_deg
   channels:
-    both: {chip: 0, channel: 1, pin: 19}   # both servo signal wires
+    a: {type: hw, chip: 0, channel: 1, pin: 19, down: 180, up_dir: -1}   # CALIBRATE
+    b: {type: lgpio, pin: 16, down: 0, up_dir: 1}                         # CALIBRATE
 
 sound:
   device: plughw:CARD=Headphones,DEV=0   # 3.5 mm jack, straight to ALSA (fastest start)
@@ -103,6 +106,8 @@ controller:
                             # 4-6 s (Nov 10); a clip already 4-6 s long plays whole. 0 = exactly
                             # scare_seconds
   flap_seconds: 0.5         # time between servo up and down while scaring
+  ready_flashes: 2          # Nov 11: lamp flashes this many times when the system is live (0 = off),
+                            # so it can be told without a screen (needs the deterrent switch on)
   return_deg_per_s: 90      # after a scare, ease back down this fast: jumping right after an up flap
                             # reverses the servos mid-move, and that current spike can brown out
                             # their supply
