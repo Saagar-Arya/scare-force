@@ -223,6 +223,14 @@ def run(args, cfg, camera, confirmers, thresholds, detector, deterrent, sound, s
     announce_at = None    # print slider changes once they settle, not on every step of a drag
 
     servos.down()
+    flashes = int(rules.get("ready_flashes", 0) or 0)
+    if flashes and deterrent.light is not None:  # live: tell whoever powered it on, no screen needed
+        for _ in range(flashes):
+            deterrent.light.on()
+            time.sleep(0.3)
+            deterrent.light.off()
+            time.sleep(0.3)
+    print("[controller] READY: detection and deterrence live", flush=True)
     while True:
         want_night = night
         if not args.headless and night:
