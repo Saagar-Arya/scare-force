@@ -25,7 +25,8 @@ label_map:
 # set -> sound types. Clips are picked by sound_type and played round-robin across types.
 sets:
   generic:   [human_speech, human_shout, human_scream, dog_bark, siren, bird_call, raptor, animal_shriek]
-                                                   # Nov 11: bird_synth -> bird_call (natural piha, D-29)
+                                                   # Nov 11: bird_synth -> bird_call (natural piha, D-29);
+                                                   # human_speech has no playable clip (all off, D-29)
                                                    # Nov 10: the generic set is the library;
                                                    # species sets below are kept but unused
   raccoon:   [dog_bark, human_speech, human_shout, human_scream]
@@ -81,6 +82,7 @@ clips:
     basis: null
     flagged: false
     notes: "GAO 'Watchdog' podcast, conversational interview about airline mergers (studio speech, ~8 min episode). Excerpt taken from mid-episode, away from the intro/outro (intro has edited teaser segments). Pitch analysis (F0 ~170-250 Hz) indicates a female voice (host or guest Danielle Giese) talking continuously; words not transcribed. Not verified by ear for a music bed; mid-episode speech is expected to be dry."
+    excluded_reason: "dropped Nov 11 (Nikhil): sounded odd in the Mac listening pass"
   - id: human_speech_radio_address_man_03
     sound_type: human_speech
     original: originals/human_speech/human_speech_radio_address_man_03.flac
@@ -126,6 +128,7 @@ clips:
     basis: "team-chosen test arm; no literature basis"
     flagged: false
     notes: "'Person shouting GOOOOAAAAAALLLL!' (own work). One long sustained shout; onset at ~0.15 s, loudest in the first ~1.5 s then slowly decaying over ~11 s. Excerpt = first 5 s, start moved to 0.1888 s (19 ms into the shout) so the onset rise is under 5 ms: the first ~20 ms rise only passed while the -12 LUFS limiting flattened the peak. Gender not stated on page."
+    excluded_reason: "dropped Nov 11 (Nikhil): sounded odd in the Mac listening pass"
   - id: human_shout_man_battlecry_04
     sound_type: human_shout
     original: originals/human_shout/human_shout_man_battlecry_04.flac
