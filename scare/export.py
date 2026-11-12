@@ -87,6 +87,12 @@ def build_report(dets: list[dict], acts: list[dict], start: str, end: str) -> st
            f"(UTC offset shown in detections.csv)</p>",
            f"<p><b>{len(dets)}</b> confirmed detections, <b>{len(scares)}</b> fired a scare; "
            f"{len(acts)} scares logged in total (including manual tests).</p>"]
+    unsynced = [r for r in dets if r.get("clock_synced") == "no"]
+    if unsynced:  # Nov 11: no RTC; after a boot without network the clock can be behind
+        out.append(f"<p><b>Clock warning:</b> {len(unsynced)} of {len(dets)} detections were logged "
+                   f"while the Pi's clock was not network-synchronized (first {e(unsynced[0]['time'])}, "
+                   f"last {e(unsynced[-1]['time'])}). Their times may be behind; see clock_synced in "
+                   f"detections.csv.</p>")
     if not dets:
         out.append("<p>No detections in this range.</p></body></html>")
         return "\n".join(out)

@@ -42,6 +42,7 @@ from .camera import Camera
 from .confirmation import TargetConfirmer
 from .detector import Detector
 from .deterrent import Deterrent, Shutdown, handle_signals, ignore_signals
+from . import clock
 from .detection_log import DetectionLog
 from .light import Light
 from .motion import MotionDetector, MotionLog, draw
@@ -99,6 +100,7 @@ def main() -> None:
     try:
         deterrent.log = ActivationLog(ROOT / log_path) if log_path else None  # null: terminal only
         if cfg["log"].get("detections"):  # a photo + CSV row per confirmed detection
+            clock.report()  # no RTC: warn when the time isn't network-synced (scare/clock.py)
             detlog = DetectionLog(cfg["log"], ROOT)
         camera = Camera(c)
         confirmers = [TargetConfirmer(rules["confirm_frames"], rules["confirm_iou"],

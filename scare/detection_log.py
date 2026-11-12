@@ -31,6 +31,9 @@ and one row per detection in log.detections (default logs/detections.csv):
     outcome              as above
     photo, annotated     paths relative to log.photos; empty if not saved (see below)
     width, height        frame size
+    clock_synced         "yes" | "no" | "unknown": was the Pi's clock NTP-synchronized when this was
+                         logged (scare/clock.py). "no" = time resumed from the last save after a
+                         boot without network: these rows may be behind (Nov 11)
 
 Photos are written by a background thread, so a JPEG never delays a scare or the camera loop.
 An ignored detection that finds QUEUE_MAX frames already waiting is not photographed (its row is
@@ -48,12 +51,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from . import clock
 from .activation_log import CsvLog
 
 QUEUE_MAX = 16  # frames waiting to be written (~0.9 MB each at 640x480)
 
 FIELDS = ("time", "detection_id", "camera", "camera_name", "label", "confidence", "box",
-          "others", "people", "outcome", "photo", "annotated", "width", "height")
+          "others", "people", "outcome", "photo", "annotated", "width", "height", "clock_synced")
 
 
 class DetectionCsv(CsvLog):
@@ -131,7 +135,7 @@ class DetectionLog:
             "confidence": f"{best.confidence:.3f}", "box": " ".join(str(int(v)) for v in best.box),
             "others": "; ".join(f"{d.label} {d.confidence:.2f}" for d in hits if d is not best),
             "people": people, "outcome": outcome, "photo": photo, "annotated": annotated,
-            "width": w, "height": h,
+            "width": w, "height": h, "clock_synced": clock.synced(),
         })
         return det_id
 
