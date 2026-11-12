@@ -14,7 +14,8 @@
 #      model files exist; prints the settings that matter for the demo
 #   5. fetches both Pi branches back to the Mac as refs pi/* so the Pi-only work can go to GitHub
 #
-# It never deletes, resets or pushes to GitHub, never reboots, and does not start the controller.
+# It never deletes, resets or pushes to GitHub and never reboots. If the boot service
+# (tools/pi_boot.sh) is running, it is stopped for the update and started again at the end.
 # Undo on the Pi: git -C ~/scare-force switch pi/pre-demo-<stamp>
 set -euo pipefail
 IP="${1:?usage: tools/pi_update.sh <pi-ip> [user]}"; USER_AT="${2:-scareforce}@$IP"
@@ -33,8 +34,14 @@ set +e
 "${SSH[@]}" "STAMP=$STAMP bash -s" <<'PI'
 set -euo pipefail
 cd "${REPO:-$HOME/scare-force}"
+# boot service (tools/pi_boot.sh): stop it for the update, start it again however this ends
+if systemctl is-active --quiet scare-force 2>/dev/null; then
+  sudo -n systemctl stop scare-force || { echo "!! couldn't stop the scare-force service (sudo). Nothing changed."; exit 1; }
+  echo "   stopped the scare-force service for the update"
+  trap 'sudo -n systemctl start scare-force && echo "   scare-force service started again"' EXIT
+fi
 if pgrep -af "scare\.controller" >/dev/null; then
-  echo "!! scare.controller is running; stop it (Ctrl+C / q) and run this again. Nothing changed."; exit 1
+  echo "!! scare.controller is running by hand; stop it (Ctrl+C / q) and run this again. Nothing changed."; exit 1
 fi
 FROM="$(git rev-parse --abbrev-ref HEAD)"
 echo "   Pi was on $FROM at $(git log -1 --format='%h %s')"

@@ -1,0 +1,28 @@
+# Scare Force at boot: detection + deterrence, no commands needed.
+# Installed by tools/pi_boot.sh (it fills in @USER@, @HOME@, @GROUPS@ on the Pi).
+#   status:  systemctl status scare-force        logs: journalctl -u scare-force -f
+#   stop for a manual / windowed run:  sudo systemctl stop scare-force   (start: ... start)
+[Unit]
+Description=Scare Force: detection + deterrence (scare.controller --headless)
+After=sound.target time-sync.target
+Wants=time-sync.target
+# keep retrying forever (farm test): no start-rate limit
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+SupplementaryGroups=@GROUPS@
+WorkingDirectory=@HOME@/scare-force
+Environment=PYTHONUNBUFFERED=1
+# no RTC: wait up to 20 s for network time so the first log rows are right, then start anyway
+ExecStartPre=-/bin/sh -c 'for i in $(seq 20); do [ "$(timedatectl show -p NTPSynchronized --value)" = yes ] && exit 0; sleep 1; done; echo "[clock] not synchronized after 20 s; starting anyway"'
+ExecStart=@HOME@/scare-force/.venv/bin/python -m scare.controller --headless
+# SIGTERM: the controller turns the lamp off, stops aplay, releases GPIO (scare/deterrent.py)
+KillSignal=SIGTERM
+TimeoutStopSec=20
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
